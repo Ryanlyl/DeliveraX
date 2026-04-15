@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-slate-200;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-100 text-slate-900 antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 32%),
+      linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+    font-family: "Plus Jakarta Sans", "Noto Sans SC", "Segoe UI", sans-serif;
+  }
+
+  button,
+  input {
+    @apply outline-none;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
