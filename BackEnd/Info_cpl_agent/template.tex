@@ -1,0 +1,235 @@
+
+\documentclass[12pt,a4paper]{ctexart}
+
+\usepackage[a4paper,margin=1.8cm]{geometry}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{lastpage}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\onehalfspacing
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{RIS需求记录表}
+\fancyhead[R]{DeliveraX / AI Agent需求流转}
+\fancyfoot[C]{第 \thepage\ 页 / 共 \pageref{LastPage} 页}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \bfseries RIS（智能超表面）需求记录表模板}\\[0.5em]
+    {\large Requirement Record Form for Reconfigurable Intelligent Surface}\\[0.8em]
+    {\small 版本：V1.0 \quad 文档状态：草案 / 评审中 / 已基线（勾选其一）}
+\end{center}
+
+\vspace{0.6em}
+
+%========================
+% 文档基础信息
+%========================
+\section{文档基础信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+文档编号 & % FILL_ME: 请Agent填写文档编号 (例如: RR-RIS-2026-001)
+ & 项目名称 & % FILL_ME: 请Agent填写项目名称
+ \\ \hline
+所属客户 & % FILL_ME: 请Agent填写客户名称
+ & 需求提出日期 & % FILL_ME: 请Agent填写日期 (格式: YYYY-MM-DD)
+ \\ \hline
+需求来源 & % FILL_ME: 请Agent填写需求来源
+ & 当前阶段 & % FILL_ME: 请Agent填写当前项目阶段
+ \\ \hline
+责任人 & % FILL_ME: 请Agent填写责任人姓名
+ & 参与人 & % FILL_ME: 请Agent填写参与人员列表
+ \\ \hline
+保密等级 & % FILL_ME: 请Agent填写保密等级
+ & 优先级 & % FILL_ME: 请Agent填写优先级 (例如: P1)
+ \\ \hline
+关联文档 & % FILL_ME: 请Agent填写关联文档列表
+ & 版本号 & % FILL_ME: 请Agent填写版本号 (例如: V1.0)
+ \\ \hline
+\end{tabularx}
+
+\vspace{0.8em}
+
+\textbf{填写说明：}
+\begin{itemize}[leftmargin=2em]
+    \item 本表用于客户需求采集、需求澄清、技术分析和立项评估的统一记录。
+    \item 每条需求应尽量满足：唯一、明确、可验证、可追踪、可变更管理。
+    \item 建议 AI Agent 从本表中自动抽取：场景、KPI、约束、接口、风险、验收项、责任人、待澄清项。
+\end{itemize}
+
+%========================
+% 业务背景
+%========================
+\section{业务背景与建设目标}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+业务场景 & % FILL_ME: 请Agent根据会议纪要填写具体的物理环境 (如: 地下二层停车场、长走廊等)
+ \\ \hline
+建设动因 & % FILL_ME: 请Agent总结现网存在的具体问题 (如: RSRP<-110dBm, 切换失败率高等)
+ \\ \hline
+建设目标 & % FILL_ME: 请Agent填写预期的技术指标 (如: RSRP>-105dBm, SINR>0dB等)
+ \\ \hline
+目标用户 & % FILL_ME: 请Agent推断受影响的人群 (如: 停车车主, 物流人员, 访客等)
+ \\ \hline
+业务价值 & % FILL_ME: 请Agent总结项目价值 (如: 降低投诉, 提升品牌形象, 节省CAPEX等)
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 场景信息
+%========================
+\section{站点与场景信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+建设地点 & % FILL_ME: 请Agent填写具体地理位置 (如: 某城市综合体地下停车场 B2-B3 层)
+ & 场景类型 & % FILL_ME: 请Agent推断场景物理属性 (如: 室内 / 半封闭 / 多径效应显著)
+ \\ \hline
+覆盖面积 & % FILL_ME: 请Agent提取面积数值 (如: 约 6,000--10,000 平方米)
+ & 层高 & % FILL_ME: 请Agent提取高度数值 (如: 约 3.6 米)
+ \\ \hline
+主要材质 & % FILL_ME: 请Agent总结环境材质 (如: 混凝土立柱、金属管道、高损耗墙体)
+ & 目标区域 & % FILL_ME: 请Agent识别重点覆盖区 (如: 车道拐角、出入口、缴费区)
+ \\ \hline
+现网站点 & % FILL_ME: 请Agent填写现有覆盖设施 (如: 室分 / 宏站外打 / 无覆盖)
+ & 传输条件 & % FILL_ME: 请Agent推断回传条件 (如: 机房可接入 / POE可用 / 光纤可达)
+ \\ \hline
+供电条件 & % FILL_ME: 请Agent推断供电方式 (如: AC 220V / 弱电井取电 / POE 供电)
+ & 安装约束 & % FILL_ME: 请Agent提取现场限制 (如: 吊顶受限、消防要求、承重限制)
+ \\ \hline
+勘查状态 & % FILL_ME: 请Agent填写当前进度 (如: 已初勘 / 待复勘)
+ & 附件 & % FILL_ME: 请Agent列出相关文件 (如: 平面图、照片、热力图)
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求干系人
+%========================
+\section{干系人人与职责}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|P{3.0cm}|Y|P{3.0cm}|}
+\hline
+角色 & 姓名/部门 & 职责 & 联系方式 \\
+\hline
+客户负责人 & % FILL_ME: 请Agent提取客户方负责人姓名及部门
+ & 需求确认、资源协调、验收签字 & % FILL_ME: 请Agent提取客户方联系电话
+ \\ \hline
+客户经理 & % FILL_ME: 请Agent提取我方客户经理姓名
+ & 需求录入、客户沟通、版本流转 & % FILL_ME: 请Agent提取我方经理电话
+ \\ \hline
+产品经理 & % FILL_ME: 请Agent提取产品经理姓名
+ & 需求分析、优先级判定、方案边界确认 & % FILL_ME: 请Agent提取产品经理电话
+ \\ \hline
+技术经理 & % FILL_ME: 请Agent提取技术负责人姓名
+ & 技术可行性评估、参数建议、KPI拆解 & % FILL_ME: 请Agent提取技术负责人电话
+ \\ \hline
+交付经理 & % FILL_ME: 请Agent提取交付经理姓名
+ & 施工计划、资源排期、验收组织 & % FILL_ME: 请Agent提取交付经理电话
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求总览
+%========================
+\section{需求总览}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+需求标题 & % FILL_ME: 请Agent提炼核心需求主题 (如: 地下停车场弱覆盖区域引入 RIS 进行定向覆盖增强)
+ \\ \hline
+需求摘要 & % FILL_ME: 请Agent总结客户核心诉求与预期效果 (如: 改善拐角/深处覆盖, 提升业务连续性)
+ \\ \hline
+需求分类 & % FILL_ME: 请Agent根据上下文判断类型 (如: 新建需求 / 网络优化 / 场景创新试点)
+ \\ \hline
+需求等级 & % FILL_ME: 请Agent评估项目紧迫性与复杂度 (如: 商务紧急度高; 技术复杂度中高)
+ \\ \hline
+期望上线时间 & % FILL_ME: 请Agent提取目标日期 (如: 2026-06-30)
+ \\ \hline
+验收方式 & % FILL_ME: 请Agent提取验收标准 (如: 现场测试 + 报表核验 + 客户签字确认)
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 变更记录
+%========================
+\section{变更记录}
+
+\begin{longtable}{|>{\centering\arraybackslash}p{1.4cm}|
+                  >{\centering\arraybackslash}p{2.1cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|
+                  >{\raggedright\arraybackslash}p{6.0cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+% FILL_ME: 请Agent根据JSON中的ChangeLog列表填充以下行
+% 格式示例: V0.1 & 2026-04-16 & 张三 & 初版创建，完成客户需求录入。 & 草案 \\
+% 如果没有变更记录，可保留此行或删除
+% 初始记录建议:
+V1.0 & % FILL_ME: 请Agent填写当前日期 & % FILL_ME: 请Agent填写生成者(如: Agent/姓名) & % FILL_ME: 请Agent填写生成说明 (如: 初始需求生成) & % FILL_ME: 请Agent填写状态 (如: 草案) \\ \hline
+\end{longtable}
+
+%========================
+% 审批签字
+%========================
+\section{审批与签字}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+客户负责人签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+客户经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+产品经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+技术经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+交付经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+\end{tabularx}
+
+\vspace{1em}
+\textbf{备注：}
+\begin{itemize}[leftmargin=2em]
+    \item 本模板中的指标与示例内容为演示填充，正式项目应以客户现网、勘查结果、方案评审结论和验收口径为准。
+    \item 建议将本表作为“需求唯一输入源”，后续由 AI Agent 自动派生《需求分析报告》《方案评审单》《测试验收清单》《变更记录》。
+\end{itemize}
+
+\end{document}

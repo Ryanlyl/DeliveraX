@@ -1,0 +1,225 @@
+\documentclass[12pt,a4paper]{ctexart}
+
+\usepackage[a4paper,margin=1.8cm]{geometry}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{lastpage}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\onehalfspacing
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{RIS需求记录表}
+\fancyhead[R]{DeliveraX / AI Agent需求流转}
+\fancyfoot[C]{第 \thepage\ 页 / 共 \pageref{LastPage} 页}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \bfseries RIS（智能超表面）需求记录表模板}\\[0.5em]
+    {\large Requirement Record Form for Reconfigurable Intelligent Surface}\\[0.8em]
+    {\small 版本：V1.0 \quad 文档状态：草案 / 评审中 / 已基线（勾选其一）}
+\end{center}
+
+\vspace{0.6em}
+
+%========================
+% 文档基础信息
+%========================
+\section{文档基础信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+文档编号 & 待定
+ & 项目名称 & 深圳南山幼儿园图书馆 5G 深度覆盖项目
+ \\ \hline
+所属客户 & 深圳南山幼儿园
+ & 需求提出日期 & 2026-04-16
+ \\ \hline
+需求来源 & 客户会议
+ & 当前阶段 & 需求采集与方案设计
+ \\ \hline
+责任人 & 王大牛（客户经理）
+ & 参与人 & 张建（园长），王大牛（客户经理）
+ \\ \hline
+保密等级 & 内部公开
+ & 优先级 & P1
+ \\ \hline
+关联文档 & 暂无数据
+ & 版本号 & V1.0
+ \\ \hline
+\end{tabularx}
+
+\vspace{0.8em}
+
+\textbf{填写说明：}
+\begin{itemize}[leftmargin=2em]
+    \item 本表用于客户需求采集、需求澄清、技术分析和立项评估的统一记录。
+    \item 每条需求应尽量满足：唯一、明确、可验证、可追踪、可变更管理。
+    \item 建议 AI Agent 从本表中自动抽取：场景、KPI、约束、接口、风险、验收项、责任人、待澄清项。
+\end{itemize}
+
+%========================
+% 业务背景
+%========================
+\section{业务背景与建设目标}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+业务场景 & 幼儿园图书馆老楼区域，特别是三楼阅览室和地下负一层密集书库。
+ \\ \hline
+建设动因 & 图书馆老楼区域手机信号差，特别是三楼阅览室和地下负一层密集书库，几乎无法通话，学生投诉多。
+ \\ \hline
+建设目标 & 目标区域RSRP > -95 dBm，SINR > 10dB，保证通话清晰无中断。
+ \\ \hline
+目标用户 & 幼儿园师生（学生、教师、管理人员）
+ \\ \hline
+业务价值 & 保障通信畅通以支持日常管理、紧急联络及可能的数字化教学应用，降低投诉，提升安全性与教学体验。
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 场景信息
+%========================
+\section{站点与场景信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+建设地点 & 深圳南山幼儿园图书馆
+ & 场景类型 & 室内 / 结构复杂 / 多径效应显著
+ \\ \hline
+覆盖面积 & 待定
+ & 层高 & 待定
+ \\ \hline
+主要材质 & 待定
+ & 目标区域 & 三楼阅览室、地下负一层密集书库及其他可能弱电区域
+ \\ \hline
+现网站点 & 无覆盖或覆盖极差
+ & 传输条件 & 待定
+ \\ \hline
+供电条件 & 待定
+ & 安装约束 & 尽量避免明线敷设，减少对原有装修的破坏；设备应小巧、隐蔽，符合儿童场所环境；安装需牢固，符合儿童活动场所安全标准。
+ \\ \hline
+勘查状态 & 待初勘
+ & 附件 & 暂无数据
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求干系人
+%========================
+\section{干系人人与职责}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|P{3.0cm}|Y|P{3.0cm}|}
+\hline
+角色 & 姓名/部门 & 职责 & 联系方式 \\
+\hline
+客户负责人 & 张建（园长） & 需求确认、资源协调、验收签字 & 待定
+ \\ \hline
+客户经理 & 王大牛 & 需求录入、客户沟通、版本流转 & 待定
+ \\ \hline
+产品经理 & 待定 & 需求分析、优先级判定、方案边界确认 & 待定
+ \\ \hline
+技术经理 & 待定 & 技术可行性评估、参数建议、KPI拆解 & 待定
+ \\ \hline
+交付经理 & 待定 & 施工计划、资源排期、验收组织 & 待定
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求总览
+%========================
+\section{需求总览}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+需求标题 & 深圳南山幼儿园图书馆老楼区域5G/4G深度覆盖增强
+ \\ \hline
+需求摘要 & 解决图书馆三楼阅览室及地下负一层密集书库信号死角问题，实现全区域稳定、高质量信号覆盖，满足语音通话与基础数据业务需求，同时满足美观、隐蔽及儿童安全要求。
+ \\ \hline
+需求分类 & 新建需求 / 网络优化
+ \\ \hline
+需求等级 & 商务紧急度高；技术复杂度中高
+ \\ \hline
+期望上线时间 & 待定
+ \\ \hline
+验收方式 & 现场测试（RSRP > -95 dBm，SINR > 10dB）+ 客户签字确认
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 变更记录
+%========================
+\section{变更记录}
+
+\begin{longtable}{|>{\centering\arraybackslash}p{1.4cm}|
+                  >{\centering\arraybackslash}p{2.1cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|
+                  >{\raggedright\arraybackslash}p{6.0cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+V1.0 & 2026-04-16 & Agent & 初始需求生成 & 草案 \\ \hline
+\end{longtable}
+
+%========================
+% 审批签字
+%========================
+\section{审批与签字}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+客户负责人签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+客户经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+产品经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+技术经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+交付经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+\end{tabularx}
+
+\vspace{1em}
+\textbf{备注：}
+\begin{itemize}[leftmargin=2em]
+    \item 本模板中的指标与示例内容为演示填充，正式项目应以客户现网、勘查结果、方案评审结论和验收口径为准。
+    \item 建议将本表作为“需求唯一输入源”，后续由 AI Agent 自动派生《需求分析报告》《方案评审单》《测试验收清单》《变更记录》。
+\end{itemize}
+
+\end{document}

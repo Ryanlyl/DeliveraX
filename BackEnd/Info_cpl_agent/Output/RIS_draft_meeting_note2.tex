@@ -1,0 +1,230 @@
+\documentclass[12pt,a4paper]{ctexart}
+
+\usepackage[a4paper,margin=1.8cm]{geometry}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{lastpage}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\onehalfspacing
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{RIS需求记录表}
+\fancyhead[R]{DeliveraX / AI Agent需求流转}
+\fancyfoot[C]{第 \thepage\ 页 / 共 \pageref{LastPage} 页}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \bfseries RIS（智能超表面）需求记录表模板}\\[0.5em]
+    {\large Requirement Record Form for Reconfigurable Intelligent Surface}\\[0.8em]
+    {\small 版本：V1.0 \quad 文档状态：草案 / 评审中 / 已基线（勾选其一）}
+\end{center}
+
+\vspace{0.6em}
+
+%========================
+% 文档基础信息
+%========================
+\section{文档基础信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+文档编号 & 待定
+ & 项目名称 & 某医院图书馆 5G 深度覆盖项目
+ \\ \hline
+所属客户 & 待定
+ & 需求提出日期 & 2026-04-16
+ \\ \hline
+需求来源 & 客户经理（小刘）与客户沟通
+ & 当前阶段 & 需求澄清与方案设计
+ \\ \hline
+责任人 & 小刘
+ & 参与人 & 小刘（客户经理）、杨工（客户技术对接人）、王处长（客户决策人）
+ \\ \hline
+保密等级 & 内部
+ & 优先级 & P1
+ \\ \hline
+关联文档 & 暂无数据
+ & 版本号 & V1.0
+ \\ \hline
+\end{tabularx}
+
+\vspace{0.8em}
+
+\textbf{填写说明：}
+\begin{itemize}[leftmargin=2em]
+    \item 本表用于客户需求采集、需求澄清、技术分析和立项评估的统一记录。
+    \item 每条需求应尽量满足：唯一、明确、可验证、可追踪、可变更管理。
+    \item 建议 AI Agent 从本表中自动抽取：场景、KPI、约束、接口、风险、验收项、责任人、待澄清项。
+\end{itemize}
+
+%========================
+% 业务背景
+%========================
+\section{业务背景与建设目标}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+业务场景 & 医院图书馆内部，包含密集书架区域、靠窗休息区等。
+ \\ \hline
+建设动因 & 现有网络存在信号盲区，影响电子资源访问、在线学习和移动办公；金属书架对信号屏蔽严重。
+ \\ \hline
+建设目标 & 图书馆内5G信号全覆盖，无盲区，关键区域速率达标。
+ \\ \hline
+目标用户 & 医护人员、患者、访客等图书馆使用者。
+ \\ \hline
+业务价值 & 提升医护人员和患者获取知识、进行学术研究的效率；保障医疗秩序和设备安全前提下完成网络升级；提升客户满意度。
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 场景信息
+%========================
+\section{站点与场景信息}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+建设地点 & 某医院图书馆
+ & 场景类型 & 室内 / 结构复杂 / 多径效应显著
+ \\ \hline
+覆盖面积 & 待定
+ & 层高 & 待定
+ \\ \hline
+主要材质 & 金属书架、混凝土墙体、玻璃窗
+ & 目标区域 & 密集书架区域、靠窗休息区等信号盲区
+ \\ \hline
+现网站点 & 待定
+ & 传输条件 & 待定
+ \\ \hline
+供电条件 & 待定
+ & 安装约束 & 施工需低噪音、低粉尘；设备安装需美观、隐形，贴合墙面或天花板；需考虑电磁兼容性。
+ \\ \hline
+勘查状态 & 待勘查
+ & 附件 & 待提供图书馆平面图（CAD图纸或高清平面图）
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求干系人
+%========================
+\section{干系人人与职责}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|P{3.0cm}|Y|P{3.0cm}|}
+\hline
+角色 & 姓名/部门 & 职责 & 联系方式 \\
+\hline
+客户负责人 & 王处长（基建处）
+ & 需求确认、资源协调、验收签字 & 待定
+ \\ \hline
+客户经理 & 小刘
+ & 需求录入、客户沟通、版本流转 & 待定
+ \\ \hline
+产品经理 & 待定
+ & 需求分析、优先级判定、方案边界确认 & 待定
+ \\ \hline
+技术经理 & 待定
+ & 技术可行性评估、参数建议、KPI拆解 & 待定
+ \\ \hline
+交付经理 & 待定
+ & 施工计划、资源排期、验收组织 & 待定
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 需求总览
+%========================
+\section{需求总览}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|}
+\hline
+需求标题 & 医院图书馆5G深度覆盖与低干扰部署需求
+ \\ \hline
+需求摘要 & 解决图书馆内信号盲区问题，实现5G信号无死角、稳定高速覆盖；施工过程需低噪音、低粉尘，不影响医疗秩序；设备需具备良好电磁兼容性；方案需优化成本，安装需美观隐形。
+ \\ \hline
+需求分类 & 新建需求 / 网络优化
+ \\ \hline
+需求等级 & 商务紧急度高；技术复杂度中高
+ \\ \hline
+期望上线时间 & 待定
+ \\ \hline
+验收方式 & 现场信号测试（全覆盖，关键区域速率达标）+ 施工过程零投诉记录 + 电磁兼容性审核报告 + 客户签字确认
+ \\ \hline
+\end{tabularx}
+
+%========================
+% 变更记录
+%========================
+\section{变更记录}
+
+\begin{longtable}{|>{\centering\arraybackslash}p{1.4cm}|
+                  >{\centering\arraybackslash}p{2.1cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|
+                  >{\raggedright\arraybackslash}p{6.0cm}|
+                  >{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{版本} & \textbf{日期} & \textbf{修改人} & \textbf{修改说明} & \textbf{审批状态} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+V1.0 & 2026-04-16 & Agent & 初始需求生成，基于客户沟通纪要。 & 草案 \\ \hline
+\end{longtable}
+
+%========================
+% 审批签字
+%========================
+\section{审批与签字}
+
+\begin{tabularx}{\textwidth}{|P{3.2cm}|Y|P{3.2cm}|Y|}
+\hline
+客户负责人签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+客户经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+产品经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+技术经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+交付经理签字 & \vspace{1.2cm} & 日期 & \\
+\hline
+\end{tabularx}
+
+\vspace{1em}
+\textbf{备注：}
+\begin{itemize}[leftmargin=2em]
+    \item 本模板中的指标与示例内容为演示填充，正式项目应以客户现网、勘查结果、方案评审结论和验收口径为准。
+    \item 建议将本表作为“需求唯一输入源”，后续由 AI Agent 自动派生《需求分析报告》《方案评审单》《测试验收清单》《变更记录》。
+\end{itemize}
+
+\end{document}
