@@ -22,6 +22,14 @@ const basePath = normalizeBasePath(process.env.VITE_BASE_PATH || defaultBasePath
 export default defineConfig({
   base: basePath,
   plugins: [react()],
+  server: {
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

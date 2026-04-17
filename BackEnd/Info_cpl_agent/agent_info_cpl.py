@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -7,7 +8,7 @@ from openai import OpenAI
 
 # ================= 配置区域 =================
 # 请填入你的 DeepSeek API Key
-DEEPSEEK_API_KEY = "sk-691f42c6b4c84a5dae3b12dcaf015a58"
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 MODEL_NAME = "deepseek-chat"
 
@@ -412,6 +413,213 @@ def save_latex_file(content, filename):
     print(f"INFO: 成功生成: {filepath}")
 
 
+    return filepath
+
+
+def escape_latex(value):
+    text = "待定" if value in (None, "") else str(value)
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return text
+
+
+def join_values(values):
+    if not values:
+        return "待定"
+    return "、".join(escape_latex(item) for item in values if item)
+
+
+def build_enumerate(items):
+    if not items:
+        return "\\begin{itemize}\n\\item 暂无数据\n\\end{itemize}"
+    return "\\begin{itemize}\n" + "\n".join(f"\\item {escape_latex(item)}" for item in items) + "\n\\end{itemize}"
+
+
+def build_function_rows(functional_items):
+    if not functional_items:
+        return "\\item 暂无功能需求"
+
+    rows = []
+    for item in functional_items:
+        rows.append(
+            "\\item "
+            + escape_latex(item.get("id", "FR-000"))
+            + " "
+            + escape_latex(item.get("title", "未命名需求"))
+            + "（"
+            + escape_latex(item.get("priority", "P1"))
+            + "）"
+            + "\n\n"
+            + escape_latex(item.get("description", "暂无说明"))
+        )
+    return "\n".join(rows)
+
+
+def build_object_rows(items, *, title_key, detail_key):
+    if not items:
+        return "\\item 暂无数据"
+
+    rows = []
+    for item in items:
+        title = escape_latex(item.get(title_key, "未命名"))
+        detail = escape_latex(item.get(detail_key, "暂无说明"))
+        rows.append(f"\\item {title}: {detail}")
+    return "\n".join(rows)
+
+
+def build_next_step_rows(items):
+    if not items:
+        return "\\item 暂无后续动作"
+
+    rows = []
+    for item in items:
+        rows.append(
+            "\\item "
+            + escape_latex(item.get("task", "待确认"))
+            + "；负责人："
+            + escape_latex(item.get("owner", "待定"))
+            + "；截止："
+            + escape_latex(item.get("due", "待定"))
+            + ("；备注：" + escape_latex(item.get("notes")) if item.get("notes") else "")
+        )
+    return "\n".join(rows)
+
+
+def generate_local_latex(final_data, original_filename):
+    project_info = final_data.get("project_info", {})
+    business = final_data.get("business", {})
+    scene = final_data.get("scene", {})
+    requirements = final_data.get("requirements", {})
+    risks = final_data.get("risks", [])
+    notes = final_data.get("notes", [])
+    stakeholders = project_info.get("stakeholders", [])
+
+    stakeholder_rows = []
+    for stakeholder in stakeholders:
+        stakeholder_rows.append(
+            "\\item "
+            + escape_latex(stakeholder.get("role", "角色"))
+            + "："
+            + escape_latex(stakeholder.get("name", "待定"))
+            + "（"
+            + escape_latex(stakeholder.get("organization", "待定"))
+            + "）"
+        )
+    stakeholder_block = "\n".join(stakeholder_rows) if stakeholder_rows else "\\item 暂无干系人信息"
+
+    latex_content = f"""\\documentclass[12pt,a4paper]{{ctexart}}
+\\usepackage[a4paper,margin=1.8cm]{{geometry}}
+\\usepackage{{hyperref}}
+\\usepackage{{enumitem}}
+\\setlength{{\\parindent}}{{0pt}}
+\\setlength{{\\parskip}}{{6pt}}
+
+\\begin{{document}}
+
+\\begin{{center}}
+{{\\LARGE \\textbf{{DeliveraX RIS 需求文档草稿}}}}\\\\[0.5em]
+{{\\large 本地模式生成，可直接用于前后端联调验证}}\\\\[0.8em]
+\\end{{center}}
+
+\\section*{{基础信息}}
+\\begin{{itemize}}[leftmargin=2em]
+\\item 文档编号：{escape_latex(project_info.get("id", original_filename))}
+\\item 项目名称：{escape_latex(project_info.get("name", original_filename))}
+\\item 客户名称：{escape_latex(project_info.get("customer", "待定"))}
+\\item 会议主题：{escape_latex(project_info.get("meeting_topic", original_filename))}
+\\item 当前阶段：{escape_latex(project_info.get("stage", "需求澄清 / 方案设计"))}
+\\item 责任人：{escape_latex(project_info.get("owner", "待定"))}
+\\item 参与人员：{join_values(project_info.get("participants", []))}
+\\end{{itemize}}
+
+\\section*{{业务背景}}
+\\begin{{itemize}}[leftmargin=2em]
+\\item 业务场景：{escape_latex(business.get("scenario", "待定"))}
+\\item 建设动因：{escape_latex(business.get("motivation", "待定"))}
+\\item 建设目标：
+{build_enumerate(business.get("goals", []))}
+\\item 目标用户：
+{build_enumerate(business.get("target_users", []))}
+\\item 业务价值：
+{build_enumerate(business.get("value", []))}
+\\end{{itemize}}
+
+\\section*{{场景信息}}
+\\begin{{itemize}}[leftmargin=2em]
+\\item 建设地点：{escape_latex(scene.get("location", "待定"))}
+\\item 场景类型：{escape_latex(scene.get("type", "待定"))}
+\\item 覆盖面积：{escape_latex(scene.get("area", "待定"))}
+\\item 层高：{escape_latex(scene.get("ceiling_height", "待定"))}
+\\item 主要材质：{join_values(scene.get("materials", []))}
+\\item 重点区域：{join_values(scene.get("target_zones", []))}
+\\item 现网情况：{escape_latex(scene.get("existing_network", "待定"))}
+\\item 供电条件：{escape_latex(scene.get("power_supply", "待定"))}
+\\item 安装约束：
+{build_enumerate(scene.get("constraints", []))}
+\\item 相关附件：{join_values(scene.get("attachments", []))}
+\\end{{itemize}}
+
+\\section*{{干系人与职责}}
+\\begin{{itemize}}[leftmargin=2em]
+{stakeholder_block}
+\\end{{itemize}}
+
+\\section*{{需求摘要}}
+{escape_latex(requirements.get("summary", "待补充"))}
+
+\\section*{{功能需求}}
+\\begin{{itemize}}[leftmargin=2em]
+{build_function_rows(requirements.get("functional", []))}
+\\end{{itemize}}
+
+\\section*{{KPI 与接口}}
+\\subsection*{{KPI}}
+\\begin{{itemize}}[leftmargin=2em]
+{build_object_rows(requirements.get("kpi", []), title_key="metric", detail_key="target")}
+\\end{{itemize}}
+
+\\subsection*{{接口 / 输入资料}}
+\\begin{{itemize}}[leftmargin=2em]
+{build_object_rows(requirements.get("interfaces", []), title_key="name", detail_key="details")}
+\\end{{itemize}}
+
+\\section*{{验收与计划}}
+\\begin{{itemize}}[leftmargin=2em]
+\\item 时间计划：{escape_latex(requirements.get("timeline", "待定"))}
+\\item 验收要求：
+{build_enumerate(requirements.get("acceptance", []))}
+\\item 下一步动作：
+\\begin{{itemize}}[leftmargin=2em]
+{build_next_step_rows(requirements.get("next_steps", []))}
+\\end{{itemize}}
+\\end{{itemize}}
+
+\\section*{{风险与备注}}
+\\subsection*{{风险}}
+{build_enumerate(risks)}
+
+\\subsection*{{备注}}
+{build_enumerate(notes)}
+
+\\end{{document}}
+"""
+
+    output_filename = f"RIS_{original_filename}.tex"
+    return save_latex_file(latex_content, output_filename)
+
+
 def call_deepseek(messages):
     """调用 DeepSeek 模型。"""
     try:
@@ -498,6 +706,34 @@ def step_2_generate_latex(template_content, final_data, original_filename):
 
     if "FILL_ME" in cleaned_latex:
         print("WARN: 生成结果中仍包含 FILL_ME 占位符，请检查模型返回内容。")
+
+
+    return AGENT_OUTPUT_DIR / output_filename
+
+
+def process_single_json_file(json_file, mode="api"):
+    json_path = Path(json_file)
+    if not json_path.exists():
+        print(f"ERROR: Missing JSON file: {json_path}")
+        return None
+
+    raw_data = load_json_file(json_path)
+    normalized_data = normalize_input_record(raw_data, json_path.name)
+
+    if mode == "local":
+        return generate_local_latex(normalized_data, json_path.stem)
+
+    if not TEMPLATE_PATH.exists():
+        print(f"ERROR: Missing LaTeX template: {TEMPLATE_PATH}")
+        return None
+
+    if not DEEPSEEK_API_KEY:
+        raise ValueError("DEEPSEEK_API_KEY is required when running Info CPL Agent in api mode.")
+
+    template_content = load_template(TEMPLATE_PATH)
+    enhanced_data = step_1_enhance_data(normalized_data)
+    final_data = normalize_input_record(enhanced_data, json_path.name)
+    return step_2_generate_latex(template_content, final_data, json_path.stem)
 
 
 def main():

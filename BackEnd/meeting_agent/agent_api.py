@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -9,7 +10,7 @@ import requests
 # 1. 配置区域
 # ==========================================
 # 🔴 请务必在这里填入你的 DeepSeek API Key
-API_KEY = "sk-691f42c6b4c84a5dae3b12dcaf015a58"
+API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 
 API_URL = "https://api.deepseek.com/chat/completions"
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -421,6 +422,8 @@ def process_single_file(input_path):
     print(f"INFO: 成功生成：{output_filename}")
     print("-" * 30)
 
+
+    return output_path
 
 if __name__ == "__main__":
     print("--- RIS 需求理解 Agent (API 真实版) 启动 ---")

@@ -459,6 +459,8 @@ def process_single_meeting(input_file_path):
     print("-" * 30)
 
 
+    return output_file_path
+
 if __name__ == "__main__":
     print("--- RIS 需求理解 Agent (本地多文件测试版) 启动 ---")
 
