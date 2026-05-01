@@ -1,5 +1,5 @@
-export function buildRequirementPrompt(userInput: string): string {
-  return `
+def build_requirement_prompt(user_input: str) -> str:
+    return f"""
 你是 Requirement Agent，负责把用户的自然语言前端需求整理为可供人类审阅的结构化需求文档数据。
 
 你的任务边界：
@@ -28,8 +28,8 @@ Definition of Done 表达规范：
 - 替代表达示例：将“移动端适配通过测试”改为“移动端布局符合验收标准”；将“功能测试通过”改为“功能符合验收标准”。
 
 RequirementSpec JSON 结构如下：
-{
-  "basicInfo": {
+{{
+  "basicInfo": {{
     "requirementName": "string",
     "requirementType": "string",
     "priority": "string",
@@ -37,64 +37,61 @@ RequirementSpec JSON 结构如下：
     "relatedPageOrModule": "string",
     "estimatedDeliveryTime": "string",
     "status": "string"
-  },
-  "background": {
+  }},
+  "background": {{
     "context": "string",
     "currentProblems": ["string"],
     "targetUsers": ["string"],
     "scenarios": ["string"],
     "entryPoints": ["string"]
-  },
-  "goals": {
+  }},
+  "goals": {{
     "inScope": ["string"],
     "outOfScope": ["string"]
-  },
-  "impactScope": {
+  }},
+  "impactScope": {{
     "pagesOrModules": ["string"],
     "userRoles": ["string"],
     "businessFlows": ["string"],
     "dataOrApiScenarios": ["string"]
-  },
-  "uiux": {
+  }},
+  "uiux": {{
     "pageStructure": ["string"],
     "visualRequirements": ["string"],
     "responsiveRequirements": ["string"],
     "interactionRequirements": ["string"]
-  },
-  "acceptanceCriteria": {
+  }},
+  "acceptanceCriteria": {{
     "checklist": ["string"],
     "gherkinScenarios": ["string"]
-  },
+  }},
   "performanceRequirements": ["string"],
   "compatibilityRequirements": ["string"],
-  "copywriting": {
+  "copywriting": {{
     "normalCopy": ["string"],
     "errorCopy": ["string"]
-  },
+  }},
   "risks": [
-    {
+    {{
       "risk": "string",
       "impact": "string",
       "mitigation": "string"
-    }
+    }}
   ],
   "definitionOfDone": ["string"],
   "openQuestions": ["string"]
-}
+}}
 
 自然语言前端需求：
-${userInput}
-`.trim();
-}
+{user_input}
+""".strip()
 
-export function buildFixPrompt(
-  originalPrompt: string,
-  rawOutput: string,
-  errors: Array<{ category: string; keyword: string; message: string }>,
-): string {
-  const errorLines = errors.map((error) => `- ${error.message}`).join("\n");
 
-  return `
+def build_fix_prompt(
+    original_prompt: str, raw_output: str, errors: list[dict[str, str]]
+) -> str:
+    error_lines = "\n".join(f"- {error['message']}" for error in errors)
+    return f"""
 你刚刚输出的内容不符合要求，请根据以下错误进行修正，并只输出合法 JSON。
 
 要求：
@@ -107,12 +104,11 @@ export function buildFixPrompt(
 - 不要包含具体接口、具体控件、开发流程、测试流程或技术实现内容。
 
 原始 Requirement Agent Prompt：
-${originalPrompt}
+{original_prompt}
 
 你刚刚输出的内容：
-${rawOutput}
+{raw_output}
 
 需要修复的错误：
-${errorLines}
-`.trim();
-}
+{error_lines}
+""".strip()

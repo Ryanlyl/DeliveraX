@@ -1,0 +1,101 @@
+Metadata-Version: 2.4
+Name: requirement-agent
+Version: 0.1.0
+Summary: Requirement analysis agent implemented in Python
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.7.0
+Requires-Dist: httpx>=0.27.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: black>=24.0.0; extra == "dev"
+Requires-Dist: flake8>=7.0.0; extra == "dev"
+Requires-Dist: mypy>=1.8.0; extra == "dev"
+
+# Requirement Analysis (Python)
+
+`RequirementsAnalysis` 现在使用 Python 实现，并与 `SolutionDesign`、`CodeGen` 保持一致的技术栈。
+
+## 功能范围
+
+- 输入自然语言前端需求
+- 执行输入校验与边界校验
+- 调用 LLM 生成结构化 `RequirementSpec`
+- 校验 JSON 结构与字段质量
+- 自动修复一次（当首轮输出不合法时）
+- 生成可审阅 Markdown PRD
+
+## 目录结构
+
+- `agent/models.py`：数据模型（spec/result/error/meta）
+- `agent/input_validator.py`：输入校验
+- `agent/boundary_validator.py`：边界规则校验
+- `agent/spec_validator.py`：schema/字段质量校验
+- `agent/prompts.py`：prompt 与 fix prompt
+- `agent/markdown_renderer.py`：PRD 渲染器
+- `agent/runner.py`：主流程编排
+- `agent/providers/deepseek.py`：DeepSeek provider
+- `tests/`：pytest 测试
+- `run.py`：示例入口
+
+## 环境要求
+
+- Python 3.10+
+
+安装依赖：
+
+```bash
+pip install -e .[dev]
+```
+
+## 本地调试（推荐）
+
+基础命令（mock 模式）：
+
+```bash
+python run.py --input-file ./samples/meeting_note.txt --output-dir ./outputs
+```
+
+也可以直接传文本：
+
+```bash
+python run.py --user-input "用户希望从会议纪要生成结构化需求文档"
+```
+
+产物会保存到 `outputs/<run_id>/`，包含：
+
+- `input.txt`
+- `requirement_spec.json`（成功时）
+- `requirement_prd.md`（成功时）
+- `report.json`
+
+使用真实 DeepSeek（本地调试）：
+
+```bash
+set DEEPSEEK_API_KEY=your_key
+python run.py --input-file ./samples/meeting_note.txt --output-dir ./outputs --use-real-llm
+```
+
+可选环境变量：
+
+- `DEEPSEEK_MODEL`（默认 `deepseek-v4-flash`）
+- `DEEPSEEK_TIMEOUT_SECONDS`（默认 `60`）
+
+## 运行测试
+
+```bash
+pytest
+```
+
+## 代码方式调用
+
+```python
+from agent import RequirementAnalysisInput, run_requirement_analysis
+from agent.providers import deepseek_llm_call
+
+result = await run_requirement_analysis(
+    RequirementAnalysisInput(userInput="做一个任务列表页，支持完成标记和异常提示"),
+    llm_call=deepseek_llm_call,
+)
+```
