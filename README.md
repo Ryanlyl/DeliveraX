@@ -1,168 +1,229 @@
-<div align="center">
-  <h1>DeliveraX</h1>
-  <p><strong>From meeting notes to delivery-grade documents.</strong></p>
-  <p>
-    一个面向 <strong>需求梳理 -> 信息补全 -> 文档交付</strong> 的 AI 协作原型，
-    将零散会议纪要沉淀为结构化需求草稿，并进一步生成可交付的 LaTeX 文档。
-  </p>
-  <p>
-    <img alt="React 18" src="https://img.shields.io/badge/React-18-111827?style=flat-square&logo=react&logoColor=61DAFB">
-    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-111827?style=flat-square&logo=typescript&logoColor=3178C6">
-    <img alt="Vite" src="https://img.shields.io/badge/Vite-5-111827?style=flat-square&logo=vite&logoColor=646CFF">
-    <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.111+-111827?style=flat-square&logo=fastapi&logoColor=009688">
-    <img alt="LaTeX Output" src="https://img.shields.io/badge/Output-LaTeX-111827?style=flat-square&logo=latex&logoColor=008080">
-  </p>
-</div>
+# DeliveraX
 
-## Overview
+DeliveraX 是一个面向真实研发交付链路的 AI DevFlow 原型。它不再是旧版的「前端 + 后端 + 文档生成」结构，而是围绕一条更接近工程交付的流水线组织：
 
-DeliveraX 的核心目标不只是“再做一个 Agent Demo”，而是把真实交付链路里的信息损耗降下来。
-
-在典型的售前、方案和实施协作中，团队常常会遇到这些问题：
-
-- 会议纪要是非结构化文本，后续很难复用。
-- 需求草稿依赖人工整理，速度慢且容易遗漏。
-- 交付文档生成过程黑盒化，团队无法追踪中间产物。
-
-DeliveraX 用一个可视化工作台把这条链路串起来，让每一步都有输入、有产出、可预览、可回看。
-
-## What Makes It Valuable
-
-- **Structured from day one**: 上传 `.txt` 会议纪要后，系统会先生成标准化 `draft_*.json`，而不是直接跳到最终文档。
-- **Human-in-the-loop**: 中间结果可查看、可下载，适合人工审核和修正，而不是一键黑盒输出。
-- **Dual execution modes**: 核心 Agent 同时支持本地规则模式和 API 模式，便于离线演示与在线增强。
-- **Delivery-oriented**: 最终产物不是聊天记录，而是更接近真实交付场景的 `.tex` 文档。
-
-## End-to-End Flow
-
-```mermaid
-flowchart LR
-    A["Meeting Notes (.txt)"] --> B["Meeting Agent"]
-    B --> C["Structured Draft (.json)"]
-    C --> D["Info CPL Agent"]
-    D --> E["LaTeX Document (.tex)"]
-    E --> F["Review / Download / Delivery"]
+```text
+原始需求 / 会议记录
+  -> RequirementsAnalysis
+  -> SolutionDesign
+  -> CodeGen
+  -> DeliveryIntegration
+  -> 可评审、可合并的交付产物
 ```
 
-这条链路对应的是一个非常明确的产品思路：
+核心目标是把自然语言需求逐步转成结构化需求、技术方案、代码变更 diff、交付摘要和 PR 描述，并在关键节点保留人工检查空间。
 
-`会议输入 -> 结构化抽取 -> 信息补全 -> 文档输出 -> 人工审核`
+## 当前状态
 
-## Product Surface
+- 旧的 `BackEnd` 服务已不再作为主线使用。
+- 前端工作台位于 `FrontEnd/`，用于展示和体验 DevFlow 流程。
+- 后端能力当前拆成多个 CLI-first 模块，每个阶段都可以独立运行、独立验证产物。
+- GitHub Pages 部署 workflow 已暂时停用，提交到仓库后不会自动部署。
 
-### Frontend
+## 流水线模块
 
-前端位于 [`FrontEnd`](./FrontEnd)，基于 `React + Vite + TypeScript + Tailwind CSS`，提供一个偏产品化的工作台界面，覆盖：
+### 1. RequirementsAnalysis
 
-- 项目列表与阶段切换
-- 会议纪要上传
-- Meeting Agent / Info CPL Agent 触发
-- 中间文件与最终文件预览
-- 任务状态追踪
+需求分析阶段。输入自然语言需求、会议记录或产品想法，输出结构化需求和 Markdown PRD。
 
-主入口：
+主要产物：
 
-- [`FrontEnd/src/main.tsx`](./FrontEnd/src/main.tsx)
-- [`FrontEnd/src/App.tsx`](./FrontEnd/src/App.tsx)
+```text
+RequirementsAnalysis/outputs/<run-id>/
+|-- input.txt
+|-- requirement_spec.json
+|-- requirement_prd.md
+`-- report.json
+```
 
-### Backend
-
-后端位于 [`BackEnd`](./BackEnd)，基于 `FastAPI`，承担文件管理、任务调度、结果回传和静态预览能力。
-
-核心能力包括：
-
-- 项目与阶段查询
-- 会议纪要上传
-- Agent 任务创建与轮询
-- JSON / TeX 文件内容预览
-- 文件下载
-
-服务入口：
-
-- [`BackEnd/service/main.py`](./BackEnd/service/main.py)
-
-### Agents
-
-当前包含两类核心 Agent：
-
-- `Meeting Agent`
-  将会议纪要抽取为结构化需求草稿 `draft_*.json`
-- `Info CPL Agent`
-  基于结构化草稿补全文档信息，并生成 `RIS_*.tex`
-
-两者都保留了“可展示中间产物”的设计，这一点对演示和交付都很重要。
-
-## Architecture Snapshot
-
-| Layer | Responsibility | Key Stack |
-| --- | --- | --- |
-| Experience Layer | 项目工作台、文件预览、任务状态反馈 | React, Vite, TypeScript, Tailwind |
-| Service Layer | API 编排、文件管理、任务调度 | FastAPI, Pydantic |
-| Agent Layer | 会议抽取、信息补全、LaTeX 生成 | Local rules / DeepSeek API |
-| Output Layer | 草稿 JSON、LaTeX 文档、可下载资产 | JSON, TeX |
-
-## Demo Journey
-
-如果你要在最短时间内演示 DeliveraX，可以按下面这条路径走：
-
-1. 进入项目工作台，选择一个项目和阶段。
-2. 上传一份 `.txt` 会议纪要。
-3. 运行 `Meeting Agent`，生成结构化 `draft_*.json`。
-4. 在界面中预览 JSON 草稿，确认关键信息是否完整。
-5. 运行 `Info CPL Agent`，生成最终 `.tex` 文档。
-6. 预览或下载产物，完成演示闭环。
-
-这条路径的重点不是“模型有多强”，而是“链路是否闭环、过程是否透明、产物是否可交付”。
-
-## Quick Start
-
-### 1. Start the backend
-
-在 [`BackEnd`](./BackEnd) 目录下执行：
+本地 mock 运行：
 
 ```powershell
-cd E:\DeliveraX\BackEnd
-python -m pip install -r requirements.txt
-uvicorn service.main:app --reload
+cd E:\DeliveraX
+python .\RequirementsAnalysis\run.py `
+  --input-file .\RequirementsAnalysis\samples\meeting_note.txt `
+  --output-dir .\RequirementsAnalysis\outputs `
+  --run-id smoke_test
 ```
 
-默认服务地址：
-
-- `http://127.0.0.1:8000`
-
-如果你希望启用 API 模式，请先配置：
+启用真实 LLM：
 
 ```powershell
 $env:DEEPSEEK_API_KEY="your_api_key"
+python .\RequirementsAnalysis\run.py `
+  --input-file .\RequirementsAnalysis\samples\meeting_note.txt `
+  --output-dir .\RequirementsAnalysis\outputs `
+  --use-real-llm
 ```
 
-### 2. Start the frontend
+### 2. SolutionDesign
 
-在 [`FrontEnd`](./FrontEnd) 目录下执行：
+方案设计阶段。输入结构化 PRD 和目标代码仓库，拉取或读取仓库上下文，生成可交给代码生成阶段执行的技术方案。
+
+主要产物：
+
+```text
+SolutionDesign/Output/technical_design_*.md
+SolutionDesign/.workspace/repos/<repo-cache-name>/
+```
+
+示例：
+
+```powershell
+cd E:\DeliveraX
+python .\SolutionDesign\run.py `
+  --requirement .\SolutionDesign\Input\structured_requirement_example.md `
+  --repo-path E:\SomeFrontendRepo `
+  --local-only
+```
+
+真实 LLM 配置示例：
+
+```powershell
+$env:SOLUTION_DESIGN_API_KEY="your_api_key"
+$env:SOLUTION_DESIGN_BASE_URL="https://api.deepseek.com"
+$env:SOLUTION_DESIGN_MODEL="deepseek-chat"
+```
+
+### 3. CodeGen
+
+代码生成阶段。输入 `SolutionDesign` 产出的技术方案，复用方案设计阶段缓存的目标仓库，在任务级副本里落地代码修改，并输出标准 git diff。
+
+主要产物：
+
+```text
+CodeGen/Output/<task-id>/
+|-- code_changes.diff
+|-- codegen_report.md
+`-- codegen_result.json
+```
+
+示例：
+
+```powershell
+cd E:\DeliveraX
+python .\CodeGen\run.py `
+  --design .\SolutionDesign\Output\technical_design_example.md `
+  --task-id codegen-demo-001 `
+  --local-only
+```
+
+真实 LLM 配置示例：
+
+```powershell
+$env:CODEGEN_API_KEY="your_api_key"
+$env:CODEGEN_BASE_URL="https://api.deepseek.com"
+$env:CODEGEN_MODEL="deepseek-chat"
+```
+
+### 4. DeliveryIntegration
+
+交付集成阶段。输入经过上游测试和评审的 `CodeGen` 结果，把 diff 集成到独立 worktree，生成最终 diff、中文变更摘要和 GitHub PR 描述。
+
+这个模块不会自动 push GitHub，也不会重新拉仓库、重新测试或重新评审。
+
+主要产物：
+
+```text
+DeliveryIntegration/Output/<task-id>/
+|-- final_changes.diff
+|-- change_summary.md
+|-- github_pr_body.md
+`-- delivery_integration_result.json
+```
+
+离线运行示例：
+
+```powershell
+cd E:\DeliveraX
+python .\DeliveryIntegration\run.py `
+  --codegen-result .\CodeGen\Output\codegen-demo-001\codegen_result.json `
+  --task-id delivery-demo-001 `
+  --no-llm `
+  --force
+```
+
+如果要用 LLM 生成摘要和 PR 描述：
+
+```powershell
+$env:DELIVERY_INTEGRATION_LLM_API_KEY="your_api_key"
+$env:DELIVERY_INTEGRATION_LLM_BASE_URL="https://api.deepseek.com"
+$env:DELIVERY_INTEGRATION_LLM_MODEL="deepseek-chat"
+```
+
+## FrontEnd
+
+前端工作台位于 `FrontEnd/`，基于 React + Vite + TypeScript。当前主要用于展示 DevFlow 首页、流程列表、阶段详情和节点状态。
+
+启动方式：
 
 ```powershell
 cd E:\DeliveraX\FrontEnd
-npm install
+npm ci
 npm run dev
 ```
 
-默认访问地址：
+构建：
 
-- `http://127.0.0.1:5173`
+```powershell
+cd E:\DeliveraX\FrontEnd
+npm run build
+```
 
-## Repository Layout
+## 仓库结构
 
 ```text
 DeliveraX/
-|-- FrontEnd/                  # React-based project workspace
-|   |-- src/App.tsx            # Main workbench UI
-|   `-- package.json
-|-- BackEnd/
-|   |-- service/main.py        # FastAPI service entry
-|   |-- meeting_agent/         # Meeting note -> draft JSON
-|   `-- Info_cpl_agent/        # Draft JSON -> LaTeX document
-|-- .github/workflows/         # Frontend deployment workflow
+|-- FrontEnd/                 # React/Vite DevFlow 工作台
+|-- RequirementsAnalysis/     # 自然语言需求 -> 结构化需求 / PRD
+|-- SolutionDesign/           # PRD + 仓库上下文 -> 技术方案
+|-- CodeGen/                  # 技术方案 -> 代码变更 diff
+|-- DeliveryIntegration/      # CodeGen 结果 -> 本地交付集成产物
+|-- .github/workflows/        # CI/CD workflow；Pages 部署当前已停用
 `-- README.md
 ```
 
+运行时目录说明：
 
+- `*/Output/`：各阶段输出产物。
+- `*/outputs/`：RequirementsAnalysis 的本地调试输出。
+- `*/.workspace/`：阶段内部缓存、任务副本和 worktree。
+- 这些运行时产物默认不作为长期源码维护对象。
+
+## 环境准备
+
+Python 模块：
+
+```powershell
+cd E:\DeliveraX
+python -m pip install -e ".\RequirementsAnalysis[dev]"
+python -m pip install -r .\SolutionDesign\requirements.txt
+python -m pip install -r .\CodeGen\requirements.txt
+python -m pip install -r .\DeliveryIntegration\requirements.txt
+```
+
+前端模块：
+
+```powershell
+cd E:\DeliveraX\FrontEnd
+npm ci
+```
+
+## CI / Deployment
+
+`.github/workflows/deploy-frontend-pages.yml` 当前处于停用状态：
+
+- 不监听 `push`。
+- 不执行 `npm ci` 或 `npm run build`。
+- 不上传 GitHub Pages artifact。
+- 不调用 `actions/deploy-pages`。
+
+保留这个 workflow 只是为了占位和后续恢复；当前提交不会触发自动部署，也不会因为 Pages 部署链路报错阻塞仓库。
+
+## 设计原则
+
+- 每个阶段产物都可落盘、可检查、可复用。
+- 代码生成不直接污染源仓库，只在任务级副本中产生 diff。
+- 交付集成只处理已经通过上游约束的变更，不隐式 push。
+- LLM 调用保持可配置，默认支持 OpenAI-compatible 服务。
+- 人工审核是流水线的一部分，不把所有风险都交给一次性自动化。

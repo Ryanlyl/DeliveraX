@@ -1,66 +1,14 @@
-name: Deploy FrontEnd to GitHub Pages
+name: FrontEnd Pages Deployment Disabled
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "FrontEnd/**"
-      - ".github/workflows/deploy-frontend-pages.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: true
 
 jobs:
-  build:
+  deployment-disabled:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: FrontEnd
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: FrontEnd/package-lock.json
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build site
-        run: npm run build
-        env:
-          VITE_BASE_PATH: ${{ vars.PAGES_BASE_PATH }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: FrontEnd/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deployment disabled
+        run: echo "FrontEnd GitHub Pages deployment is intentionally disabled during repository migration."
