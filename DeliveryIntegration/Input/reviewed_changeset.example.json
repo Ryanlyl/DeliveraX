@@ -1,0 +1,29 @@
+{
+  "task_id": "delivery-001",
+  "codegen_result_path": "../CodeGen/Output/task-001/codegen_result.json",
+  "repo": {
+    "source_repo_root": "../SolutionDesign/.workspace/repos/org_repo_main_abc123",
+    "base_branch": "main",
+    "base_commit": "abc123"
+  },
+  "test": {
+    "status": "passed",
+    "result_path": "../CodeTest/Output/task-001/code_test_result.json",
+    "passed_at": "2026-05-01T11:30:00Z"
+  },
+  "review": {
+    "status": "approved",
+    "result_path": "../CodeReview/Output/task-001/code_review_result.json",
+    "approved_by": [
+      "reviewer-a"
+    ],
+    "approved_at": "2026-05-01T12:00:00Z"
+  },
+  "changes": {
+    "diff_path": "../CodeGen/Output/task-001/code_changes.diff",
+    "changed_files": [
+      "src/App.tsx",
+      "src/api/client.ts"
+    ]
+  }
+}
