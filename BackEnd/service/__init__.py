@@ -1,1 +1,0 @@
-"""DeliveraX FastAPI service package."""

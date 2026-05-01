@@ -1,5 +1,0 @@
-service/data/
-service/__pycache__/
-meeting_agent/Output/draft_20*.json
-Info_cpl_agent/Output/RIS_draft_20*.tex
-**/__pycache__/__init__*.pyc
