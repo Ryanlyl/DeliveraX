@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from api_server.config import get_settings
+from api_server.routers import artifacts, health, pipelines, stages
+from api_server.services.approval_service import ApprovalService
+from api_server.services.artifact_service import ArtifactService
+from api_server.services.pipeline_service import PipelineService
+from api_server.services.stage_executor import StageExecutor
+from api_server.stage_registry import StageRegistry
+from api_server.storage.json_store import JsonPipelineStore
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title=settings.app_name)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    registry = StageRegistry(settings.repo_root)
+    store = JsonPipelineStore(settings.resolved_artifacts_root)
+    executor = StageExecutor(registry)
+
+    app.state.settings = settings
+    app.state.stage_registry = registry
+    app.state.pipeline_store = store
+    app.state.stage_executor = executor
+    app.state.pipeline_service = PipelineService(
+        store=store,
+        registry=registry,
+        executor=executor,
+        artifacts_root=str(settings.resolved_artifacts_root),
+    )
+    app.state.artifact_service = ArtifactService(settings.resolved_artifacts_root)
+    app.state.approval_service = ApprovalService(store)
+
+    app.include_router(health.router)
+    app.include_router(stages.router, prefix=settings.api_prefix)
+    app.include_router(pipelines.router, prefix=settings.api_prefix)
+    app.include_router(artifacts.router, prefix=settings.api_prefix)
+    return app
+
+
+app = create_app()

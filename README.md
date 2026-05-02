@@ -37,6 +37,7 @@ DeliveraX/
 |-- CodeTest/              # 代码测试占位模块
 |-- ReviewGate/            # 评审门禁占位模块
 |-- Integration/           # 交付集成：CodeGen 结果 -> 最终交付物
+|-- ApiServer/             # FastAPI 编排层：pipeline 状态、阶段调用、产物读取
 |-- stage_contracts/       # 阶段请求、结果、状态和标准产物契约
 |-- artifacts/             # API / 编排层运行时标准产物目录
 `-- .github/workflows/
@@ -52,6 +53,7 @@ python -m pip install -e ".\ReqAnalysis[dev]"
 python -m pip install -r .\SolDesign\requirements.txt
 python -m pip install -r .\CodeGen\requirements.txt
 python -m pip install -r .\Integration\requirements.txt
+python -m pip install -r .\ApiServer\requirements.txt
 ```
 
 安装前端依赖：
@@ -66,6 +68,13 @@ npm ci
 ```powershell
 cd E:\DeliveraX\FrontEnd
 npm run dev
+```
+
+启动 FastAPI 编排层：
+
+```powershell
+cd E:\DeliveraX
+python .\ApiServer\run.py
 ```
 
 ## 阶段 CLI 示例
