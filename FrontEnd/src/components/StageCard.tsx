@@ -10,24 +10,30 @@ type Props = {
 };
 
 const statusLabel: Record<Stage["status"], string> = {
-  waiting: "待执行",
+  queued: "待执行",
   running: "执行中",
-  success: "已完成",
+  succeeded: "已完成",
   failed: "执行失败",
-  pending_review: "已完成（待审核）",
+  pending_approval: "已完成（待审核）",
+  rejected: "已驳回",
+  cancelled: "已取消",
+  skipped: "已跳过",
 };
 
 const statusIcon: Record<Stage["status"], string> = {
-  waiting: "⏳",
+  queued: "⏳",
   running: "●",
-  success: "✔",
+  succeeded: "✔",
   failed: "!",
-  pending_review: "✔",
+  pending_approval: "✔",
+  rejected: "!",
+  cancelled: "×",
+  skipped: "−",
 };
 
 export default function StageCard({ stage, active, selected, disabled, isLast, onSelect }: Props) {
-  const isCheckpointPending = stage.checkpoint && stage.status === "pending_review";
-  const shouldShowDuration = stage.status !== "waiting" && stage.duration !== "0.0s";
+  const isCheckpointPending = stage.checkpoint && stage.status === "pending_approval";
+  const shouldShowDuration = stage.status !== "queued" && stage.duration !== "0.0s";
 
   return (
     <button
@@ -38,7 +44,7 @@ export default function StageCard({ stage, active, selected, disabled, isLast, o
       aria-current={active ? "step" : undefined}
     >
       <span className={`stage-node ${stage.status}`} aria-hidden="true">
-        {stage.status === "success" ? "✓" : stage.status === "failed" ? "!" : ""}
+        {stage.status === "succeeded" ? "✓" : stage.status === "failed" ? "!" : ""}
       </span>
       <span className="stage-main">
         <span className="stage-name">{stage.name}</span>
@@ -47,7 +53,7 @@ export default function StageCard({ stage, active, selected, disabled, isLast, o
       <span className="stage-side">
         <span className={`mini-status ${stage.status}`}>
           <span aria-hidden="true">{statusIcon[stage.status]}</span>
-          {stage.status === "success" && stage.checkpoint ? "已完成（已审核）" : statusLabel[stage.status]}
+          {stage.status === "succeeded" && stage.checkpoint ? "已完成（已审核）" : statusLabel[stage.status]}
         </span>
         {shouldShowDuration && <span className="duration">{stage.duration}</span>}
       </span>

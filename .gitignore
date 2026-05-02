@@ -1,1 +1,17 @@
 demoscript.txt
+.env
+.env.*
+.venv/
+node_modules/
+dist/
+*.tsbuildinfo
+artifacts/
+tmp/
+__pycache__/
+.pytest_cache/
+.pytest_tmp*/
+**/.pytest_tmp*/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+*$py.class

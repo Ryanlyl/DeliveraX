@@ -1,2 +1,0 @@
-"""SolutionDesign Agent package."""
-

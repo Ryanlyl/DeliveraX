@@ -176,9 +176,9 @@ const requirementSpec = {
 
 export const initialStages: Stage[] = [
   {
-    id: "requirement",
+    id: "requirements",
     name: "需求分析",
-    agent: "Requirement Agent",
+    agent: "ReqAnalysis",
     status: "running",
     duration: "0.0s",
     checkpoint: true,
@@ -187,13 +187,13 @@ export const initialStages: Stage[] = [
     input: exampleRequirement,
     output: structuredRequirementDocument,
     json: requirementSpec,
-    logs: ["Requirement Agent started", "Parsing natural language requirement", "Generated RequirementSpec JSON"],
+    logs: ["ReqAnalysis started", "Parsing natural language requirement", "Generated RequirementSpec JSON"],
   },
   {
-    id: "design",
+    id: "solution",
     name: "方案设计",
-    agent: "Design Agent",
-    status: "waiting",
+    agent: "SolDesign",
+    status: "queued",
     duration: "0.0s",
     input: "RequirementSpec JSON + current frontend component context",
     output: `# 技术方案设计：任务列表完成按钮视觉强化与状态反馈
@@ -210,7 +210,7 @@ export const initialStages: Stage[] = [
 | package.json | React + TypeScript + Vite |
 | 生成时间 | Demo 运行时生成 |
 | 方案状态 | Draft |
-| 方案作者 | SolutionDesign Agent |
+| 方案作者 | SolDesign |
 
 ## 1. 需求理解
 ### 1.1 需求目标
@@ -376,7 +376,7 @@ type Task = {
 ## 11. 给下一个实现 Agent 的执行指令
 \`\`\`yaml
 implementation_contract:
-  author: SolutionDesign Agent
+  author: SolDesign
   objective: 强化任务列表完成按钮视觉层级，并补充完成态反馈
   must_do:
     - 先读取仓库，确认真实路径
@@ -398,13 +398,13 @@ implementation_contract:
       strategy: "minimal scoped frontend change",
       riskLevel: "low",
     },
-    logs: ["Design Agent started", "Analyzing codebase context", "Generated implementation plan"],
+    logs: ["SolDesign started", "Analyzing codebase context", "Generated implementation plan"],
   },
   {
     id: "code",
     name: "代码生成",
-    agent: "Code Agent",
-    status: "waiting",
+    agent: "CodeGen",
+    status: "queued",
     duration: "0.0s",
     input: "Approved technical design + target component files",
     output: `diff --git a/src/components/TaskItem.tsx b/src/components/TaskItem.tsx
@@ -440,8 +440,8 @@ diff --git a/src/styles/task-list.css b/src/styles/task-list.css
   {
     id: "test",
     name: "测试生成",
-    agent: "Test Agent",
-    status: "waiting",
+    agent: "CodeTest",
+    status: "queued",
     duration: "0.0s",
     input: "Generated code diff + acceptance criteria",
     output: `import { fireEvent, render, screen } from "@testing-library/react";
@@ -476,8 +476,8 @@ Test Results
   {
     id: "review",
     name: "代码评审",
-    agent: "Review Agent",
-    status: "waiting",
+    agent: "ReviewGate",
+    status: "queued",
     duration: "0.0s",
     checkpoint: true,
     checkpointLabel: "代码评审确认",
@@ -513,13 +513,13 @@ Test Results
       tests: { passed: 5, failed: 0, coverage: "86%" },
       checkpoint: true,
     },
-    logs: ["Review Agent started", "Analyzing generated diff", "Waiting for human approval"],
+    logs: ["ReviewGate started", "Analyzing generated diff", "Waiting for human approval"],
   },
   {
-    id: "merge",
+    id: "integration",
     name: "交付集成",
-    agent: "Merge Agent",
-    status: "waiting",
+    agent: "Integration",
+    status: "queued",
     duration: "0.0s",
     input: "Approved review report + generated artifacts",
     output: `# Delivery Result
@@ -545,7 +545,7 @@ Ready to Merge`,
       changedFiles: 3,
       checklist: ["implementation", "tests", "review", "delivery"],
     },
-    logs: ["Merge Agent started", "Preparing delivery package"],
+    logs: ["Integration started", "Preparing delivery package"],
   },
 ];
 

@@ -1,2 +1,0 @@
-"""CodeGen agent package."""
-

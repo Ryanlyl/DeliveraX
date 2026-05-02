@@ -9,7 +9,7 @@ import type { LLMProvider, PipelineStatus, Stage, StageStatus } from "../types/p
 const stageDurations = ["1.5s", "3.0s", "4.2s", "6.8s", "9.6s", "11.1s"];
 const createBaseLogs = (model: LLMProvider) => [
   `Using model: ${model}`,
-  "Requirement Agent started",
+  "ReqAnalysis started",
   "Parsing natural language requirement",
   "Generated RequirementSpec JSON",
   "Waiting for human approval",
@@ -30,18 +30,18 @@ function cloneStages() {
 
 function nextExecutableIndex(stages: Stage[], currentIndex: number) {
   for (let index = currentIndex + 1; index < stages.length; index += 1) {
-    if (stages[index].status === "waiting") return index;
+    if (stages[index].status === "queued") return index;
   }
   return -1;
 }
 
 function enforceCheckpointBoundary(stages: Stage[]) {
-  const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_review");
+  const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
   if (pendingReviewIndex < 0) return stages;
 
   return stages.map((stage, index) =>
-    index > pendingReviewIndex && stage.status !== "waiting"
-      ? { ...stage, status: "waiting" as const, duration: "0.0s" }
+    index > pendingReviewIndex && stage.status !== "queued"
+      ? { ...stage, status: "queued" as const, duration: "0.0s" }
       : stage,
   );
 }
@@ -50,8 +50,8 @@ export default function PipelineDetail() {
   const [searchParams] = useSearchParams();
   const model = parseModel(searchParams.get("model"));
   const [stages, setStages] = useState<Stage[]>(cloneStages);
-  const [activeStageId, setActiveStageId] = useState("requirement");
-  const [selectedStageId, setSelectedStageId] = useState("requirement");
+  const [activeStageId, setActiveStageId] = useState("requirements");
+  const [selectedStageId, setSelectedStageId] = useState("requirements");
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>("Running");
   const [totalDuration, setTotalDuration] = useState("0.0s");
   const [activeDesignSection, setActiveDesignSection] = useState("meta");
@@ -61,16 +61,16 @@ export default function PipelineDetail() {
     () => stages.find((stage) => stage.id === selectedStageId) ?? stages[0],
     [selectedStageId, stages],
   );
-  const isViewingDesign = selectedStage.id === "design";
+  const isViewingDesign = selectedStage.id === "solution";
 
   const focusCurrentStage = (nextStages: Stage[]) => {
-    const focused = nextStages.find((stage) => stage.status === "pending_review" || stage.status === "running");
+    const focused = nextStages.find((stage) => stage.status === "pending_approval" || stage.status === "running");
     if (focused) setActiveStageId(focused.id);
   };
 
   const selectStage = (stageId: string) => {
     const stage = stages.find((item) => item.id === stageId);
-    if (!stage || stage.status === "waiting") return;
+    if (!stage || stage.status === "queued") return;
     setSelectedStageId(stageId);
   };
 
@@ -90,7 +90,7 @@ export default function PipelineDetail() {
     );
   };
 
-  const completeRunningStage = (stageId: string, targetStatus: StageStatus = "success") => {
+  const completeRunningStage = (stageId: string, targetStatus: StageStatus = "succeeded") => {
     setStages((current) => {
       const index = current.findIndex((stage) => stage.id === stageId);
       if (index < 0) return current;
@@ -98,7 +98,7 @@ export default function PipelineDetail() {
       const next = enforceCheckpointBoundary(current.map((stage, stageIndex) => {
         if (stage.id !== stageId) return stage;
         const logMessage =
-          targetStatus === "pending_review" ? "Waiting for human approval" : `${stage.agent} completed successfully`;
+          targetStatus === "pending_approval" ? "Waiting for human approval" : `${stage.agent} completed successfully`;
         const logs = [
           ...stage.logs,
           ...(stage.logs.includes(logMessage) ? [] : [logMessage]),
@@ -106,7 +106,7 @@ export default function PipelineDetail() {
         return { ...stage, status: targetStatus, duration: stageDurations[index], logs };
       }));
 
-      if (targetStatus === "pending_review") {
+      if (targetStatus === "pending_approval") {
         setPipelineStatus("Waiting for Review");
       }
 
@@ -123,7 +123,7 @@ export default function PipelineDetail() {
     timerRef.current = window.setTimeout(() => {
       const currentStage = initialStages.find((item) => item.id === stageId);
       const shouldPauseForReview = currentStage?.checkpoint === true;
-      completeRunningStage(stageId, shouldPauseForReview ? "pending_review" : "success");
+      completeRunningStage(stageId, shouldPauseForReview ? "pending_approval" : "succeeded");
 
       if (!shouldPauseForReview) {
         setStages((current) => {
@@ -148,7 +148,7 @@ export default function PipelineDetail() {
   };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => runStage("requirement"), 250);
+    const timer = window.setTimeout(() => runStage("requirements"), 250);
     return () => {
       window.clearTimeout(timer);
       if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -166,7 +166,7 @@ export default function PipelineDetail() {
   }, [pipelineStatus]);
 
   useEffect(() => {
-    const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_review");
+    const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
     if (pendingReviewIndex < 0) return;
 
     const normalized = enforceCheckpointBoundary(stages);
@@ -181,7 +181,7 @@ export default function PipelineDetail() {
       setActiveStageId(stages[pendingReviewIndex].id);
     }
     const selectedStageInNext = normalized.find((stage) => stage.id === selectedStageId);
-    if (!selectedStageInNext || selectedStageInNext.status === "waiting") {
+    if (!selectedStageInNext || selectedStageInNext.status === "queued") {
       setSelectedStageId(stages[pendingReviewIndex].id);
     }
     if (needsNormalization) {
@@ -222,7 +222,7 @@ export default function PipelineDetail() {
       if (stage.id === selectedStage.id) {
         return {
           ...stage,
-          status: "success" as const,
+          status: "succeeded" as const,
           logs: stage.logs.includes("Human approval received") ? stage.logs : [...stage.logs, "Human approval received"],
         };
       }
@@ -253,7 +253,7 @@ export default function PipelineDetail() {
 
     if (timerRef.current) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
-      completeRunningStage(selectedStage.id, "pending_review");
+      completeRunningStage(selectedStage.id, "pending_approval");
     }, 1500);
   };
 
