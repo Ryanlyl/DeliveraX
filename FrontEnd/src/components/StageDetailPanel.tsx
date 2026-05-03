@@ -7,6 +7,7 @@ import CheckpointPanel from "./CheckpointPanel";
 type Props = {
   stage: Stage;
   model: LLMProvider;
+  pipelineRequirement: string;
   viewingHistory?: boolean;
   onApprove: () => void;
   onReject: (reason: string) => void;
@@ -18,6 +19,27 @@ const tabs: Array<{ id: DetailTab; label: string }> = [
   { id: "document", label: "结构化需求文档" },
   { id: "input", label: "需求输入" },
 ];
+
+function stringifyDetail(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  return JSON.stringify(value, null, 2);
+}
+
+function getStageInputText(stage: Stage, fallback = "") {
+  const dataInput = stage.data.input ?? stage.data.input_payload ?? stage.data.request;
+  if (dataInput != null) return stringifyDetail(dataInput);
+  if (stage.input_artifacts.length > 0) return stringifyDetail(stage.input_artifacts);
+  return fallback;
+}
+
+function getStageOutputText(stage: Stage) {
+  if (stage.human_output?.trim()) return stage.human_output;
+  if (stage.error) return `${stage.error.code}: ${stage.error.message}`;
+  if (Object.keys(stage.data).length > 0) return stringifyDetail(stage.data);
+  if (stage.output_artifacts.length > 0) return stringifyDetail(stage.output_artifacts);
+  return "";
+}
 
 const statusLabel: Record<Stage["status"], string> = {
   queued: "待执行",
@@ -89,7 +111,7 @@ function CodeGenerationResult({ stage }: { stage: Stage }) {
             <button type="button">展开</button>
           </div>
         </div>
-        <DiffBlock content={stage.output} />
+        <DiffBlock content={getStageOutputText(stage)} />
       </section>
     </div>
   );
@@ -903,10 +925,13 @@ function TechnicalDesignReview() {
   );
 }
 
-export default function StageDetailPanel({ stage, model, viewingHistory = false, onApprove, onReject }: Props) {
+export default function StageDetailPanel({ stage, model, pipelineRequirement, viewingHistory = false, onApprove, onReject }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>("document");
-  const [editableRequirement, setEditableRequirement] = useState(stage.input);
-  const [requirementDraft, setRequirementDraft] = useState(stage.input);
+  const stageInput = getStageInputText(stage, pipelineRequirement);
+  const stageOutput = getStageOutputText(stage);
+  const hasStageOutput = stageOutput.trim().length > 0;
+  const [editableRequirement, setEditableRequirement] = useState(stageInput);
+  const [requirementDraft, setRequirementDraft] = useState(stageInput);
   const [supplementText, setSupplementText] = useState("");
   const [supplementDraft, setSupplementDraft] = useState("");
   const [editingRequirement, setEditingRequirement] = useState(false);
@@ -921,7 +946,7 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
   const isDesignStage = stage.id === "solution";
   const isCodeStage = stage.id === "code";
   const hasRequirementChanges =
-    editableRequirement !== stage.input || supplementText.trim().length > 0 || businessContext !== businessContextDraft || analysisState === "done";
+    editableRequirement !== stageInput || supplementText.trim().length > 0 || businessContext !== businessContextDraft || analysisState === "done";
   const isCodeOutput = stage.id === "code" && activeTab === "document";
   const isRequirementOutput = stage.id === "requirements" && activeTab === "document";
   const isRequirementInput = stage.id === "requirements" && activeTab === "input";
@@ -936,8 +961,8 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
     if (stage.id === "solution") {
       setActiveTab("document");
     }
-    setEditableRequirement(stage.input);
-    setRequirementDraft(stage.input);
+    setEditableRequirement(stageInput);
+    setRequirementDraft(stageInput);
     setSupplementText("");
     setSupplementDraft("");
     setBusinessContext(
@@ -949,7 +974,7 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
     setEditingRequirement(false);
     setEditingContext(false);
     setAnalysisState("idle");
-  }, [stage.id, stage.input]);
+  }, [stage.id, stageInput]);
 
   const confirmRequirementEdit = () => {
     setAnalysisState("running");
@@ -996,9 +1021,9 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
         {isCodeStage ? (
           <CodeGenerationResult stage={stage} />
         ) : isDesignStage ? (
-          <TechnicalDesignReview />
+          hasStageOutput ? <pre>{stageOutput}</pre> : <TechnicalDesignReview />
         ) : activeTab === "document" && (
-          isRequirementOutput ? <RequirementDocument /> : isCodeOutput ? <DiffBlock content={stage.output} /> : <pre>{stage.output}</pre>
+          isRequirementOutput ? (hasStageOutput ? <pre>{stageOutput}</pre> : <RequirementDocument />) : isCodeOutput ? <DiffBlock content={stageOutput} /> : <pre>{stageOutput}</pre>
         )}
         {!isDesignStage && !isCodeStage && activeTab === "input" && (
           isRequirementInput ? (
@@ -1061,7 +1086,7 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
                 )}
                 <div className="requirement-card-footnote">
                   <p className="requirement-edit-tip">💡 描述越具体，后续方案与代码生成越准确</p>
-                  <button className="inline-reset ghost" type="button" onClick={() => { setEditableRequirement(stage.input); setRequirementDraft(stage.input); setSupplementText(""); setSupplementDraft(""); setAnalysisState("idle"); }}>
+                  <button className="inline-reset ghost" type="button" onClick={() => { setEditableRequirement(stageInput); setRequirementDraft(stageInput); setSupplementText(""); setSupplementDraft(""); setAnalysisState("idle"); }}>
                     恢复原始
                   </button>
                 </div>
@@ -1152,15 +1177,15 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
               </div>
             </div>
           ) : (
-            <pre>{stage.input}</pre>
+            <pre>{stageInput}</pre>
           )
         )}
       </div>
 
       {stage.status === "pending_approval" && (
         <CheckpointPanel
-          title={stage.checkpointLabel ?? "Awaiting Human Approval"}
-          description={stage.checkpointDescription ?? "AI Agent 已完成当前阶段产物，请人工确认是否继续推进 Pipeline。"}
+          title={stage.checkpoint_label ?? "Awaiting Human Approval"}
+          description={stage.checkpoint_description ?? "AI Agent 已完成当前阶段产物，请人工确认是否继续推进 Pipeline。"}
           onApprove={onApprove}
           onReject={onReject}
         />

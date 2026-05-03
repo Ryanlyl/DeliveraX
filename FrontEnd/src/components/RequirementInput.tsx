@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPipeline } from "../api/pipelines";
 import { exampleRequirement } from "../data/mockPipeline";
 import type { LLMProvider } from "../types/pipeline";
 
@@ -22,6 +23,7 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
   const [promptIndex, setPromptIndex] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const loadingTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;
@@ -47,17 +49,29 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
     [],
   );
 
-  const startPipeline = () => {
+  const startPipeline = async () => {
     if (isStarting) return;
 
-    if (!hasInput) {
-      setValue(exampleRequirement);
-    }
+    const requirement = hasInput ? value.trim() : exampleRequirement;
+    if (!hasInput) setValue(requirement);
 
     setIsStarting(true);
-    loadingTimerRef.current = window.setTimeout(() => {
-      navigate(`/pipeline/demo-001?model=${encodeURIComponent(selectedModel)}`);
-    }, 700);
+    setStartError(null);
+
+    try {
+      const pipeline = await createPipeline({
+        name: "AI DevFlow Pipeline",
+        requirement,
+        provider: selectedModel,
+        repo_path: import.meta.env.VITE_DELIVERAX_REPO_PATH || undefined,
+      });
+      loadingTimerRef.current = window.setTimeout(() => {
+        navigate(`/pipeline/${encodeURIComponent(pipeline.id)}`);
+      }, 320);
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "Failed to create pipeline");
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -98,6 +112,7 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
         )}
       </div>
       {hasInput && <p className="ai-input-hint">AI 将为你生成：页面结构 + 交互逻辑 + API 定义</p>}
+      {startError && <p className="ai-input-hint error">{startError}</p>}
       <div className="flow-hint" aria-label="DevFlow Pipeline stages">
         {flowStages.map((stage, index) => (
           <span className={`flow-step ${hasInput && index === 0 ? "active" : ""}`} key={stage}>

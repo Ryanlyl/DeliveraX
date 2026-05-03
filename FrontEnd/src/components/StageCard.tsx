@@ -33,7 +33,8 @@ const statusIcon: Record<Stage["status"], string> = {
 
 export default function StageCard({ stage, active, selected, disabled, isLast, onSelect }: Props) {
   const isCheckpointPending = stage.checkpoint && stage.status === "pending_approval";
-  const shouldShowDuration = stage.status !== "queued" && stage.duration !== "0.0s";
+  const shouldShowDuration = stage.status !== "queued" && stage.duration_ms > 0;
+  const duration = `${(stage.duration_ms / 1000).toFixed(1)}s`;
 
   return (
     <button
@@ -55,7 +56,7 @@ export default function StageCard({ stage, active, selected, disabled, isLast, o
           <span aria-hidden="true">{statusIcon[stage.status]}</span>
           {stage.status === "succeeded" && stage.checkpoint ? "已完成（已审核）" : statusLabel[stage.status]}
         </span>
-        {shouldShowDuration && <span className="duration">{stage.duration}</span>}
+        {shouldShowDuration && <span className="duration">{duration}</span>}
       </span>
     </button>
   );

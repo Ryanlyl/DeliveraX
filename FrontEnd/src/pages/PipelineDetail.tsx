@@ -1,193 +1,109 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import { approveStage, getPipeline, rejectStage, runPipeline } from "../api/pipelines";
 import PipelineHeader from "../components/PipelineHeader";
 import PipelineTimeline from "../components/PipelineTimeline";
 import StageDetailPanel, { DESIGN_NAV_GROUPS } from "../components/StageDetailPanel";
-import { initialStages } from "../data/mockPipeline";
-import type { LLMProvider, PipelineStatus, Stage, StageStatus } from "../types/pipeline";
+import type { PipelineRecord, Stage } from "../types/pipeline";
 
-const stageDurations = ["1.5s", "3.0s", "4.2s", "6.8s", "9.6s", "11.1s"];
-const createBaseLogs = (model: LLMProvider) => [
-  `Using model: ${model}`,
-  "ReqAnalysis started",
-  "Parsing natural language requirement",
-  "Generated RequirementSpec JSON",
-  "Waiting for human approval",
-  "Token usage: 1280",
-  "Duration: 3.2s",
+const createBaseLogs = (provider: string) => [
+  `Using model: ${provider}`,
+  "Pipeline loaded from API server",
+  "Waiting for stage updates",
 ];
 
-function parseModel(model: string | null): LLMProvider {
-  return model === "Claude 3" ? "Claude 3" : "GPT-4";
+function formatDuration(ms: number) {
+  return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function cloneStages() {
-  return initialStages.map((stage) => ({
-    ...stage,
-    logs: [...stage.logs],
-  }));
+function totalDuration(pipeline: PipelineRecord) {
+  return formatDuration(pipeline.stages.reduce((total, stage) => total + stage.duration_ms, 0));
 }
 
-function nextExecutableIndex(stages: Stage[], currentIndex: number) {
-  for (let index = currentIndex + 1; index < stages.length; index += 1) {
-    if (stages[index].status === "queued") return index;
-  }
-  return -1;
-}
+function currentStageId(stages: Stage[]) {
+  const active = stages.find((stage) => stage.status === "pending_approval" || stage.status === "running");
+  if (active) return active.id;
 
-function enforceCheckpointBoundary(stages: Stage[]) {
-  const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
-  if (pendingReviewIndex < 0) return stages;
+  const firstAvailable = stages.find((stage) => stage.status !== "queued");
+  if (firstAvailable) return firstAvailable.id;
 
-  return stages.map((stage, index) =>
-    index > pendingReviewIndex && stage.status !== "queued"
-      ? { ...stage, status: "queued" as const, duration: "0.0s" }
-      : stage,
-  );
+  return stages[0]?.id ?? "";
 }
 
 export default function PipelineDetail() {
-  const [searchParams] = useSearchParams();
-  const model = parseModel(searchParams.get("model"));
-  const [stages, setStages] = useState<Stage[]>(cloneStages);
-  const [activeStageId, setActiveStageId] = useState("requirements");
-  const [selectedStageId, setSelectedStageId] = useState("requirements");
-  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>("Running");
-  const [totalDuration, setTotalDuration] = useState("0.0s");
+  const { pipelineId = "" } = useParams();
+  const [pipeline, setPipeline] = useState<PipelineRecord | null>(null);
+  const [selectedStageId, setSelectedStageId] = useState("");
   const [activeDesignSection, setActiveDesignSection] = useState("meta");
-  const timerRef = useRef<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isActing, setIsActing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const autoRunIdsRef = useRef<Set<string>>(new Set());
 
+  const activeStageId = useMemo(() => currentStageId(pipeline?.stages ?? []), [pipeline]);
   const selectedStage = useMemo(
-    () => stages.find((stage) => stage.id === selectedStageId) ?? stages[0],
-    [selectedStageId, stages],
+    () => pipeline?.stages.find((stage) => stage.id === selectedStageId) ?? pipeline?.stages.find((stage) => stage.id === activeStageId) ?? pipeline?.stages[0],
+    [activeStageId, pipeline, selectedStageId],
   );
-  const isViewingDesign = selectedStage.id === "solution";
+  const isViewingDesign = selectedStage?.id === "solution";
 
-  const focusCurrentStage = (nextStages: Stage[]) => {
-    const focused = nextStages.find((stage) => stage.status === "pending_approval" || stage.status === "running");
-    if (focused) setActiveStageId(focused.id);
-  };
-
-  const selectStage = (stageId: string) => {
-    const stage = stages.find((item) => item.id === stageId);
-    if (!stage || stage.status === "queued") return;
-    setSelectedStageId(stageId);
-  };
-
-  const updateStage = (stageId: string, patch: Partial<Stage>) => {
-    setStages((current) => {
-      const next = current.map((stage) => (stage.id === stageId ? { ...stage, ...patch } : stage));
-      focusCurrentStage(next);
-      return next;
+  const refreshPipeline = useCallback(async () => {
+    if (!pipelineId) return;
+    const nextPipeline = await getPipeline(pipelineId);
+    setPipeline(nextPipeline);
+    setSelectedStageId((current) => {
+      const currentStage = nextPipeline.stages.find((stage) => stage.id === current);
+      if (currentStage && currentStage.status !== "queued") return current;
+      return currentStageId(nextPipeline.stages);
     });
-  };
-
-  const appendLog = (stageId: string, log: string) => {
-    setStages((current) =>
-      current.map((stage) =>
-        stage.id === stageId && !stage.logs.includes(log) ? { ...stage, logs: [...stage.logs, log] } : stage,
-      ),
-    );
-  };
-
-  const completeRunningStage = (stageId: string, targetStatus: StageStatus = "succeeded") => {
-    setStages((current) => {
-      const index = current.findIndex((stage) => stage.id === stageId);
-      if (index < 0) return current;
-
-      const next = enforceCheckpointBoundary(current.map((stage, stageIndex) => {
-        if (stage.id !== stageId) return stage;
-        const logMessage =
-          targetStatus === "pending_approval" ? "Waiting for human approval" : `${stage.agent} completed successfully`;
-        const logs = [
-          ...stage.logs,
-          ...(stage.logs.includes(logMessage) ? [] : [logMessage]),
-        ];
-        return { ...stage, status: targetStatus, duration: stageDurations[index], logs };
-      }));
-
-      if (targetStatus === "pending_approval") {
-        setPipelineStatus("Waiting for Review");
-      }
-
-      focusCurrentStage(next);
-      return next;
-    });
-  };
-
-  const runStage = (stageId: string) => {
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    updateStage(stageId, { status: "running" });
-    appendLog(stageId, `${stages.find((stage) => stage.id === stageId)?.agent ?? "Agent"} started`);
-
-    timerRef.current = window.setTimeout(() => {
-      const currentStage = initialStages.find((item) => item.id === stageId);
-      const shouldPauseForReview = currentStage?.checkpoint === true;
-      completeRunningStage(stageId, shouldPauseForReview ? "pending_approval" : "succeeded");
-
-      if (!shouldPauseForReview) {
-        setStages((current) => {
-          const index = current.findIndex((item) => item.id === stageId);
-          const nextIndex = nextExecutableIndex(current, index);
-          if (nextIndex < 0) {
-            setPipelineStatus("Completed");
-            setTotalDuration("18.6s");
-            return current;
-          }
-          const next = current.map((item, itemIndex) =>
-            itemIndex === nextIndex
-              ? { ...item, status: "running" as const, logs: [...item.logs, `${item.agent} started`] }
-              : item,
-          );
-          focusCurrentStage(next);
-          window.setTimeout(() => runStage(next[nextIndex].id), 80);
-          return next;
-        });
-      }
-    }, 1500);
-  };
+  }, [pipelineId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => runStage("requirements"), 250);
+    let active = true;
+
+    setIsLoading(true);
+    setError(null);
+    getPipeline(pipelineId)
+      .then((nextPipeline) => {
+        if (!active) return;
+        setPipeline(nextPipeline);
+        setSelectedStageId(currentStageId(nextPipeline.stages));
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load pipeline");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
     return () => {
-      window.clearTimeout(timer);
-      if (timerRef.current) window.clearTimeout(timerRef.current);
+      active = false;
     };
-  }, []);
+  }, [pipelineId]);
 
   useEffect(() => {
-    const startedAt = Date.now();
+    if (!pipeline || pipeline.status !== "queued" || autoRunIdsRef.current.has(pipeline.id)) return;
+
+    autoRunIdsRef.current.add(pipeline.id);
+    setIsActing(true);
+    runPipeline(pipeline.id, {})
+      .then(setPipeline)
+      .catch((runError) => setError(runError instanceof Error ? runError.message : "Failed to run pipeline"))
+      .finally(() => setIsActing(false));
+  }, [pipeline]);
+
+  useEffect(() => {
+    if (!pipeline || pipeline.status !== "running") return undefined;
+
     const timer = window.setInterval(() => {
-      if (pipelineStatus !== "Completed") {
-        setTotalDuration(`${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
-      }
-    }, 200);
+      refreshPipeline().catch((refreshError) => {
+        setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh pipeline");
+      });
+    }, 1200);
+
     return () => window.clearInterval(timer);
-  }, [pipelineStatus]);
-
-  useEffect(() => {
-    const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
-    if (pendingReviewIndex < 0) return;
-
-    const normalized = enforceCheckpointBoundary(stages);
-    const needsNormalization = normalized.some(
-      (stage, index) => stage.status !== stages[index].status || stage.duration !== stages[index].duration,
-    );
-
-    if (pipelineStatus !== "Waiting for Review") {
-      setPipelineStatus("Waiting for Review");
-    }
-    if (activeStageId !== stages[pendingReviewIndex].id) {
-      setActiveStageId(stages[pendingReviewIndex].id);
-    }
-    const selectedStageInNext = normalized.find((stage) => stage.id === selectedStageId);
-    if (!selectedStageInNext || selectedStageInNext.status === "queued") {
-      setSelectedStageId(stages[pendingReviewIndex].id);
-    }
-    if (needsNormalization) {
-      setStages(normalized);
-    }
-  }, [activeStageId, pipelineStatus, selectedStageId, stages]);
+  }, [pipeline, refreshPipeline]);
 
   useEffect(() => {
     if (!isViewingDesign) return;
@@ -211,63 +127,107 @@ export default function PipelineDetail() {
     return () => observer.disconnect();
   }, [isViewingDesign]);
 
+  const selectStage = (stageId: string) => {
+    const stage = pipeline?.stages.find((item) => item.id === stageId);
+    if (!stage || stage.status === "queued") return;
+    setSelectedStageId(stageId);
+  };
+
   const scrollToDesignSection = (sectionId: string) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const approveCheckpoint = () => {
-    const currentIndex = stages.findIndex((stage) => stage.id === selectedStage.id);
-    const nextIndex = nextExecutableIndex(stages, currentIndex);
-    const approvedStages = stages.map((stage, index) => {
-      if (stage.id === selectedStage.id) {
-        return {
-          ...stage,
-          status: "succeeded" as const,
-          logs: stage.logs.includes("Human approval received") ? stage.logs : [...stage.logs, "Human approval received"],
-        };
-      }
-      if (index === nextIndex) {
-        return { ...stage, status: "running" as const, logs: [...stage.logs, `${stage.agent} started`] };
-      }
-      return stage;
-    });
+  const approveCheckpoint = async () => {
+    if (!pipeline || !selectedStage || isActing) return;
 
-    setPipelineStatus("Running");
-    setStages(approvedStages);
-
-    if (nextIndex >= 0) {
-      setActiveStageId(approvedStages[nextIndex].id);
-      setSelectedStageId(approvedStages[nextIndex].id);
-      window.setTimeout(() => runStage(approvedStages[nextIndex].id), 120);
-    } else {
-      setPipelineStatus("Completed");
-      setTotalDuration("18.6s");
+    setIsActing(true);
+    setError(null);
+    try {
+      const nextPipeline = await approveStage(pipeline.id, selectedStage.id, {
+        reviewer: "human",
+        continue_pipeline: true,
+      });
+      setPipeline(nextPipeline);
+      setSelectedStageId(currentStageId(nextPipeline.stages));
+    } catch (approvalError) {
+      setError(approvalError instanceof Error ? approvalError.message : "Failed to approve stage");
+    } finally {
+      setIsActing(false);
     }
   };
 
-  const rejectCheckpoint = (reason: string) => {
-    appendLog(selectedStage.id, `Reject reason received: ${reason}`);
-    appendLog(selectedStage.id, `Regenerating stage output with model: ${model}`);
-    setPipelineStatus("Running");
-    updateStage(selectedStage.id, { status: "running" });
+  const rejectCheckpoint = async (reason: string) => {
+    if (!pipeline || !selectedStage || isActing) return;
 
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      completeRunningStage(selectedStage.id, "pending_approval");
-    }, 1500);
+    setIsActing(true);
+    setError(null);
+    try {
+      const nextPipeline = await rejectStage(pipeline.id, selectedStage.id, {
+        reviewer: "human",
+        comment: reason,
+        continue_pipeline: false,
+      });
+      setPipeline(nextPipeline);
+      setSelectedStageId(selectedStage.id);
+    } catch (rejectError) {
+      setError(rejectError instanceof Error ? rejectError.message : "Failed to reject stage");
+    } finally {
+      setIsActing(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <main className="pipeline-page">
+        <section className="detail-panel">
+          <div className="detail-header">
+            <div>
+              <span className="eyebrow">DeliveraX / DevFlow Engine</span>
+              <h2>Loading pipeline</h2>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!pipeline || !selectedStage) {
+    return (
+      <main className="pipeline-page">
+        <section className="detail-panel">
+          <div className="detail-header">
+            <div>
+              <span className="eyebrow">DeliveraX / DevFlow Engine</span>
+              <h2>Pipeline unavailable</h2>
+            </div>
+          </div>
+          {error && <p className="ai-input-hint error">{error}</p>}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="pipeline-page">
-      <PipelineHeader status={pipelineStatus} totalDuration={totalDuration} model={model} />
+      <PipelineHeader status={pipeline.status} totalDuration={totalDuration(pipeline)} model={pipeline.provider} />
+      {error && (
+        <div className="floating-log-strip" aria-live="polite">
+          <span>{error}</span>
+        </div>
+      )}
+      {isActing && (
+        <div className="floating-log-strip" aria-live="polite">
+          <span>Syncing with API server...</span>
+        </div>
+      )}
       <div className="pipeline-layout">
         <aside className="pipeline-left-column">
-          <PipelineTimeline stages={stages} activeStageId={activeStageId} selectedStageId={selectedStageId} onSelectStage={selectStage} />
+          <PipelineTimeline stages={pipeline.stages} activeStageId={activeStageId} selectedStageId={selectedStage.id} onSelectStage={selectStage} />
           {isViewingDesign && (
-            <nav className="design-review-nav enhanced pipeline-structure-nav" aria-label="技术方案结构导航">
+            <nav className="design-review-nav enhanced pipeline-structure-nav" aria-label="Technical design structure">
               <div className="panel-title compact">
                 <span className="eyebrow">Content Index</span>
-                <h2>结构导航</h2>
+                <h2>缁撴瀯瀵艰埅</h2>
               </div>
               {DESIGN_NAV_GROUPS.map((group) => (
                 <div className="nav-group" key={group.group}>
@@ -289,14 +249,15 @@ export default function PipelineDetail() {
         </aside>
         <StageDetailPanel
           stage={selectedStage}
-          model={model}
-          viewingHistory={selectedStageId !== activeStageId}
+          model={pipeline.provider}
+          pipelineRequirement={pipeline.requirement}
+          viewingHistory={selectedStage.id !== activeStageId}
           onApprove={approveCheckpoint}
           onReject={rejectCheckpoint}
         />
       </div>
       <div className="floating-log-strip" aria-hidden="true">
-        {createBaseLogs(model).map((log) => (
+        {createBaseLogs(pipeline.provider).map((log) => (
           <span key={log}>{log}</span>
         ))}
       </div>

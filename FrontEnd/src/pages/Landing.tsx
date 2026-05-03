@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPipeline } from "../api/pipelines";
 import AppNav from "../components/AppNav";
+import { exampleRequirement } from "../data/mockPipeline";
 
 const previewStages = [
   {
@@ -56,9 +59,24 @@ const capabilityTags = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [isCreatingDemo, setIsCreatingDemo] = useState(false);
 
   const startDevFlow = () => navigate("/home");
-  const viewPipelineDemo = () => navigate("/pipeline/demo-001?model=GPT-4");
+  const viewPipelineDemo = async () => {
+    if (isCreatingDemo) return;
+    setIsCreatingDemo(true);
+    try {
+      const pipeline = await createPipeline({
+        name: "AI DevFlow Pipeline",
+        requirement: exampleRequirement,
+        provider: "GPT-4",
+        repo_path: import.meta.env.VITE_DELIVERAX_REPO_PATH || undefined,
+      });
+      navigate(`/pipeline/${encodeURIComponent(pipeline.id)}`);
+    } finally {
+      setIsCreatingDemo(false);
+    }
+  };
   const focusFeatures = () => {
     document.getElementById("landing-preview")?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -89,8 +107,8 @@ export default function Landing() {
             <button className="landing-primary" type="button" onClick={startDevFlow}>
               启动 AI 开发流程 →
             </button>
-            <button className="landing-secondary" type="button" onClick={viewPipelineDemo}>
-              查看流程演示
+            <button className="landing-secondary" type="button" onClick={viewPipelineDemo} disabled={isCreatingDemo}>
+              {isCreatingDemo ? "Creating..." : "查看流程演示"}
             </button>
           </div>
           <p className="landing-cta-note">无需配置 · 即刻体验</p>
