@@ -15,6 +15,7 @@ def ensure_repo_paths(root: Path | None = None) -> Path:
         resolved_root / "ReqAnalysis",
         resolved_root / "SolDesign",
         resolved_root / "CodeGen",
+        resolved_root / "CodeTest",
         resolved_root / "Integration",
     ]
     for path in candidates:

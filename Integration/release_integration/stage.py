@@ -25,6 +25,14 @@ def _first_artifact_path(request: StageRunRequest, *names: str) -> str | None:
     return None
 
 
+def _named_artifact_path(request: StageRunRequest, *names: str) -> str | None:
+    wanted = set(names)
+    for artifact in request.input_artifacts:
+        if artifact.name in wanted:
+            return artifact.path
+    return None
+
+
 def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
     logs = ["Integration stage started"]
@@ -38,14 +46,27 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         if not codegen_result_path:
             raise ValueError("Integration requires a codegen result artifact or options.codegen_result_path.")
 
+        test_result_path = request.options.get("test_result_path") or _named_artifact_path(
+            request, "code_test_result"
+        )
+        review_result_path = request.options.get("review_result_path") or _named_artifact_path(
+            request, "review_result"
+        )
+        test_status = request.options.get("test_status")
+        review_status = request.options.get("review_status")
+        if not test_result_path and test_status is None:
+            test_status = "passed"
+        if not review_result_path and review_status is None:
+            review_status = "approved"
+
         legacy_output_dir = stage_dir / "legacy_output"
         result_state = run_integration(
             codegen_result_path=str(codegen_result_path),
             changeset_path=request.options.get("changeset_path"),
-            test_result_path=request.options.get("test_result_path"),
-            review_result_path=request.options.get("review_result_path"),
-            test_status=request.options.get("test_status", "passed"),
-            review_status=request.options.get("review_status", "approved"),
+            test_result_path=str(test_result_path) if test_result_path else None,
+            review_result_path=str(review_result_path) if review_result_path else None,
+            test_status=str(test_status) if test_status is not None else None,
+            review_status=str(review_status) if review_status is not None else None,
             task_id=request.run_id,
             workspace_dir=str(request.options.get("workspace_dir") or stage_dir / "workspace"),
             output_dir=str(legacy_output_dir),
@@ -89,7 +110,12 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         return write_stage_artifacts(
             request=request,
             result=result,
-            input_payload={"codegen_result_path": str(codegen_result_path), "options": request.options},
+            input_payload={
+                "codegen_result_path": str(codegen_result_path),
+                "test_result_path": str(test_result_path) if test_result_path else None,
+                "review_result_path": str(review_result_path) if review_result_path else None,
+                "options": request.options,
+            },
         )
     except Exception as exc:
         result = StageRunResult.from_exception(request=request, started_at=started_at, exc=exc, logs=logs)

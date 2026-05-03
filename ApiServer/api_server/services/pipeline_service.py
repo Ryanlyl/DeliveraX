@@ -103,7 +103,8 @@ class PipelineService:
         start_index = self._stage_index(pipeline, input_data.start_stage_id) if input_data.start_stage_id else 0
         previous_artifacts: list[ArtifactRef] = []
         if start_index > 0:
-            previous_artifacts = pipeline.stages[start_index - 1].output_artifacts
+            for previous_stage in reversed(pipeline.stages[:start_index]):
+                previous_artifacts.extend(previous_stage.output_artifacts)
         stage_order = [stage.id for stage in pipeline.stages[start_index:]]
 
         for stage_id in stage_order:
@@ -127,7 +128,7 @@ class PipelineService:
                 ),
             )
             completed_stage = self._get_stage_record(pipeline, stage_id)
-            previous_artifacts = completed_stage.output_artifacts
+            previous_artifacts = [*completed_stage.output_artifacts, *previous_artifacts]
             if completed_stage.status in {"failed", "pending_approval", "rejected", "cancelled"}:
                 break
 

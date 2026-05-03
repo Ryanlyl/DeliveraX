@@ -13,20 +13,29 @@ def test_registry_marks_connected_and_placeholder_stages() -> None:
     assert availability["requirements"] is True
     assert availability["solution"] is True
     assert availability["code"] is True
-    assert availability["test"] is False
+    assert availability["test"] is True
     assert availability["review"] is False
     assert availability["integration"] is True
+
+
+def test_codetest_stage_runner_is_available() -> None:
+    registry = StageRegistry(Path(__file__).resolve().parents[2])
+
+    stage, runner = registry.runner_for("test")
+
+    assert stage.id == "test"
+    assert callable(runner)
 
 
 def test_placeholder_stage_runner_is_unavailable() -> None:
     registry = StageRegistry(Path(__file__).resolve().parents[2])
 
     try:
-        registry.runner_for("test")
+        registry.runner_for("review")
     except StageUnavailableError as exc:
         assert "not connected" in str(exc)
     else:
-        raise AssertionError("Expected test stage to be unavailable")
+        raise AssertionError("Expected review stage to be unavailable")
 
 
 def test_registry_returns_next_stage() -> None:

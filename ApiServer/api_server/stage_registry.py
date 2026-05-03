@@ -58,10 +58,10 @@ STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
     ),
     StageDefinition(
         id="test",
-        name="测试生成",
+        name="代码测试",
         agent="CodeTest",
-        module=None,
-        description="占位阶段，等待 CodeTest 接入统一 run_stage 契约。",
+        module="code_testing.stage",
+        description="基于 CodeGen 结果生成测试、执行测试并产出测试报告。",
     ),
     StageDefinition(
         id="review",
