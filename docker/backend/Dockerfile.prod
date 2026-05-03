@@ -1,0 +1,24 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY ApiServer/requirements.txt /app/ApiServer/requirements.txt
+RUN pip install --no-cache-dir -r /app/ApiServer/requirements.txt
+
+COPY ApiServer/ /app/ApiServer/
+COPY stage_contracts/ /app/stage_contracts/
+COPY ReqAnalysis/ /app/ReqAnalysis/
+COPY SolDesign/ /app/SolDesign/
+COPY CodeGen/ /app/CodeGen/
+COPY CodeTest/ /app/CodeTest/
+COPY Integration/ /app/Integration/
+COPY ReviewGate/ /app/ReviewGate/
+
+WORKDIR /app/ApiServer
+
+EXPOSE 8000
+
+CMD ["uvicorn", "api_server.main:app", "--host", "0.0.0.0", "--port", "8000"]

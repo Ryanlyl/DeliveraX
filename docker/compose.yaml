@@ -1,0 +1,31 @@
+name: deliverax
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DELIVERAX_REPO_ROOT=/workspace
+      - DELIVERAX_ARTIFACTS_ROOT=/workspace/artifacts
+      - DELIVERAX_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace/ApiServer
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_DELIVERAX_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ../FrontEnd:/workspace
+      - /workspace/node_modules
+    working_dir: /workspace
+    depends_on:
+      - backend
