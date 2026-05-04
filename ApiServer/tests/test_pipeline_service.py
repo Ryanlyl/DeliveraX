@@ -107,3 +107,81 @@ def test_pipeline_run_passes_cumulative_artifacts_with_latest_first() -> None:
         assert captured_inputs["integration"] == ["code_test_result", "codegen_result"]
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+def test_pipeline_run_uses_topological_order_from_dependencies() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    tmp_root = repo_root / "tmp" / "api_server_tests" / uuid4().hex
+    tmp_root.mkdir(parents=True, exist_ok=True)
+    execution_order: list[str] = []
+
+    class FakeRegistry:
+        definitions = [
+            StageDefinition(
+                id="code",
+                name="Code",
+                agent="CodeGen",
+                module="fake.code",
+                depends_on=("solution",),
+            ),
+            StageDefinition(
+                id="requirements",
+                name="Requirements",
+                agent="ReqAnalysis",
+                module="fake.requirements",
+            ),
+            StageDefinition(
+                id="solution",
+                name="Solution",
+                agent="SolDesign",
+                module="fake.solution",
+                depends_on=("requirements",),
+            ),
+        ]
+
+        def list(self) -> list[StageDefinition]:
+            return self.definitions
+
+        def get(self, stage_id: str) -> StageDefinition:
+            return next(stage for stage in self.definitions if stage.id == stage_id)
+
+        def runner_for(self, stage_id: str):
+            return self.get(stage_id), lambda request: request
+
+    class FakeExecutor:
+        async def run(self, request: StageRunRequest) -> StageRunResult:
+            execution_order.append(request.stage_id)
+            now = datetime.now(timezone.utc)
+            return StageRunResult(
+                pipeline_id=request.pipeline_id,
+                stage_id=request.stage_id,
+                run_id=request.run_id,
+                status="succeeded",
+                started_at=now,
+                ended_at=now,
+                duration_ms=0,
+                input_artifacts=request.input_artifacts,
+                output_artifacts=[
+                    ArtifactRef(
+                        name=f"{request.stage_id}_artifact",
+                        type="json",
+                        path=f"{request.stage_id}.json",
+                    )
+                ],
+            )
+
+    service = PipelineService(
+        store=JsonPipelineStore(tmp_root),
+        registry=FakeRegistry(),  # type: ignore[arg-type]
+        executor=FakeExecutor(),  # type: ignore[arg-type]
+        artifacts_root=str(tmp_root),
+    )
+
+    try:
+        pipeline = service.create(PipelineCreateRequest(pipeline_id="topology-demo", requirement="demo"))
+
+        asyncio.run(service.run_pipeline(pipeline.id, PipelineRunInput()))
+
+        assert execution_order == ["requirements", "solution", "code"]
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)

@@ -1,0 +1,94 @@
+{
+  "id": "default-devflow",
+  "name": "AI DevFlow Default Pipeline",
+  "version": "1.0.0",
+  "agents": [
+    {
+      "id": "req_analysis",
+      "name": "ReqAnalysis",
+      "role": "requirements analyst"
+    },
+    {
+      "id": "sol_design",
+      "name": "SolDesign",
+      "role": "solution architect"
+    },
+    {
+      "id": "code_gen",
+      "name": "CodeGen",
+      "role": "code generator"
+    },
+    {
+      "id": "code_test",
+      "name": "CodeTest",
+      "role": "test engineer"
+    },
+    {
+      "id": "review_gate",
+      "name": "ReviewGate",
+      "role": "code reviewer"
+    },
+    {
+      "id": "integration",
+      "name": "Integration",
+      "role": "release integrator"
+    }
+  ],
+  "stages": [
+    {
+      "id": "requirements",
+      "name": "需求分析",
+      "agent_ids": ["req_analysis"],
+      "module": "requirement_analysis.stage",
+      "depends_on": [],
+      "checkpoint": true,
+      "checkpoint_label": "需求确认 / Requirement Review",
+      "checkpoint_description": "AI 已生成结构化需求文档，请确认需求范围、验收标准与待确认问题是否准确。",
+      "description": "自然语言需求转结构化需求与 PRD。"
+    },
+    {
+      "id": "solution",
+      "name": "方案设计",
+      "agent_ids": ["sol_design"],
+      "module": "solution_design.stage",
+      "depends_on": ["requirements"],
+      "description": "基于 PRD 与仓库上下文生成技术方案。"
+    },
+    {
+      "id": "code",
+      "name": "代码生成",
+      "agent_ids": ["code_gen"],
+      "module": "code_generation.stage",
+      "depends_on": ["solution"],
+      "description": "基于技术方案生成代码变更 diff 和报告。"
+    },
+    {
+      "id": "test",
+      "name": "代码测试",
+      "agent_ids": ["code_test"],
+      "module": "code_testing.stage",
+      "depends_on": ["code"],
+      "description": "基于 CodeGen 结果生成测试、执行测试并产出测试报告。"
+    },
+    {
+      "id": "review",
+      "name": "代码评审",
+      "agent_ids": ["review_gate"],
+      "module": null,
+      "depends_on": ["test"],
+      "checkpoint": true,
+      "checkpoint_label": "代码评审确认",
+      "checkpoint_description": "AI 已生成代码评审报告，请确认是否允许进入交付集成阶段。",
+      "description": "占位阶段，等待 ReviewGate 接入统一 run_stage 契约。"
+    },
+    {
+      "id": "integration",
+      "name": "交付集成",
+      "agent_ids": ["integration"],
+      "module": "release_integration.stage",
+      "depends_on": ["review"],
+      "description": "汇总代码、测试、评审结果并生成最终交付材料。"
+    }
+  ],
+  "options": {}
+}

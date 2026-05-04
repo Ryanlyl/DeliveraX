@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from api_server.bootstrap import ensure_repo_paths
+from api_server.engine.config_loader import load_default_pipeline_definition
+from api_server.engine.models import PipelineDefinition
+from api_server.engine.planner import topological_stage_order
 
 ensure_repo_paths()
 
@@ -25,62 +28,38 @@ class StageDefinition:
     checkpoint_label: str | None = None
     checkpoint_description: str | None = None
     description: str | None = None
+    depends_on: tuple[str, ...] = ()
 
     @property
     def available(self) -> bool:
         return bool(self.module)
 
 
-STAGE_DEFINITIONS: tuple[StageDefinition, ...] = (
-    StageDefinition(
-        id="requirements",
-        name="需求分析",
-        agent="ReqAnalysis",
-        module="requirement_analysis.stage",
-        checkpoint=True,
-        checkpoint_label="需求确认 / Requirement Review",
-        checkpoint_description="AI 已生成结构化需求文档，请确认需求范围、验收标准与待确认问题是否准确。",
-        description="自然语言需求转结构化需求与 PRD。",
-    ),
-    StageDefinition(
-        id="solution",
-        name="方案设计",
-        agent="SolDesign",
-        module="solution_design.stage",
-        description="基于 PRD 与仓库上下文生成技术方案。",
-    ),
-    StageDefinition(
-        id="code",
-        name="代码生成",
-        agent="CodeGen",
-        module="code_generation.stage",
-        description="基于技术方案生成代码变更 diff 和报告。",
-    ),
-    StageDefinition(
-        id="test",
-        name="代码测试",
-        agent="CodeTest",
-        module="code_testing.stage",
-        description="基于 CodeGen 结果生成测试、执行测试并产出测试报告。",
-    ),
-    StageDefinition(
-        id="review",
-        name="代码评审",
-        agent="ReviewGate",
-        module=None,
-        checkpoint=True,
-        checkpoint_label="代码评审确认",
-        checkpoint_description="AI 已生成代码评审报告，请确认是否允许进入交付集成阶段。",
-        description="占位阶段，等待 ReviewGate 接入统一 run_stage 契约。",
-    ),
-    StageDefinition(
-        id="integration",
-        name="交付集成",
-        agent="Integration",
-        module="release_integration.stage",
-        description="汇总代码、测试、评审结果并生成最终交付材料。",
-    ),
-)
+def _legacy_stage_definitions(definition: PipelineDefinition) -> tuple[StageDefinition, ...]:
+    stages_by_id: dict[str, StageDefinition] = {}
+    for stage in definition.stages:
+        agent_names: list[str] = []
+        for agent_id in stage.agent_ids:
+            try:
+                agent_names.append(definition.agent_by_id(agent_id).name)
+            except KeyError:
+                agent_names.append(agent_id)
+        stages_by_id[stage.id] = StageDefinition(
+            id=stage.id,
+            name=stage.name,
+            agent=", ".join(agent_names),
+            module=stage.module,
+            depends_on=tuple(stage.depends_on),
+            checkpoint=stage.checkpoint,
+            checkpoint_label=stage.checkpoint_label,
+            checkpoint_description=stage.checkpoint_description,
+            description=stage.description,
+        )
+
+    return tuple(stages_by_id[stage_id] for stage_id in topological_stage_order(definition))
+
+
+STAGE_DEFINITIONS: tuple[StageDefinition, ...] = _legacy_stage_definitions(load_default_pipeline_definition())
 
 
 class StageNotFoundError(ValueError):
@@ -92,18 +71,21 @@ class StageUnavailableError(RuntimeError):
 
 
 class StageRegistry:
-    def __init__(self, repo_root: Path) -> None:
+    def __init__(self, repo_root: Path, pipeline_definition: PipelineDefinition | None = None) -> None:
         self.repo_root = repo_root.resolve()
+        self.pipeline_definition = pipeline_definition or load_default_pipeline_definition()
+        self._definitions = _legacy_stage_definitions(self.pipeline_definition)
+        self._definitions_by_id = {stage.id: stage for stage in self._definitions}
         self._ensure_import_paths()
 
     def list(self) -> list[StageDefinition]:
-        return list(STAGE_DEFINITIONS)
+        return list(self._definitions)
 
     def get(self, stage_id: str) -> StageDefinition:
-        for stage in STAGE_DEFINITIONS:
-            if stage.id == stage_id:
-                return stage
-        raise StageNotFoundError(f"Unknown stage_id: {stage_id}")
+        try:
+            return self._definitions_by_id[stage_id]
+        except KeyError as exc:
+            raise StageNotFoundError(f"Unknown stage_id: {stage_id}") from exc
 
     def next_stage_after(self, stage_id: str) -> StageDefinition | None:
         stages = self.list()
