@@ -12,6 +12,7 @@ def ensure_repo_paths(root: Path | None = None) -> Path:
     resolved_root = (root or repo_root()).resolve()
     candidates = [
         resolved_root,
+        resolved_root / "ReviewGate",
         resolved_root / "ReqAnalysis",
         resolved_root / "SolDesign",
         resolved_root / "CodeGen",

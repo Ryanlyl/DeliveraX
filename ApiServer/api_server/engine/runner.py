@@ -149,7 +149,14 @@ class PipelineRunner:
         for stage_id in stage_order:
             run = self.run_store.get(pipeline_id, run_id)
 
-            if stage_id in run.completed_stage_ids:
+            pipeline_view = self.service.get(pipeline_id)
+            stage_view = next((stage for stage in pipeline_view.stages if stage.id == stage_id), None)
+            rerun_required = bool(stage_view and stage_view.data.get("rerun_required"))
+            if stage_id in run.completed_stage_ids and rerun_required:
+                run.completed_stage_ids = [sid for sid in run.completed_stage_ids if sid != stage_id]
+                run.artifact_refs_by_stage.pop(stage_id, None)
+                self.run_store.save(run)
+            elif stage_id in run.completed_stage_ids:
                 continue
 
             # If we were blocked on approval and the stage has been approved externally,
@@ -193,6 +200,7 @@ class PipelineRunner:
                 run.artifact_refs_by_stage,
                 self.service._registry_pipeline_definition(),  # noqa: SLF001
             )
+            input_artifacts = self._merge_pending_input_artifacts(run, stage_id, input_artifacts)
 
             try:
                 pipeline = await self.service.run_stage(
@@ -221,6 +229,7 @@ class PipelineRunner:
             if stage_record.status == "succeeded" or stage_record.status == "skipped":
                 run.completed_stage_ids.append(stage_id)
                 run.artifact_refs_by_stage[stage_id] = list(stage_record.output_artifacts)
+                run.pending_input_artifacts_by_stage.pop(stage_id, None)
                 run.current_stage_id = None
                 self.run_store.save(run)
                 continue
@@ -260,6 +269,21 @@ class PipelineRunner:
         if latest is None:
             raise PipelineRunNotFoundError(f"No runs for pipeline {pipeline_id}")
         return latest
+
+    def _merge_pending_input_artifacts(
+        self,
+        run: PipelineRun,
+        stage_id: str,
+        input_artifacts: list,
+    ) -> list:
+        merged = list(input_artifacts)
+        for artifact in run.pending_input_artifacts_by_stage.get(stage_id, []):
+            if not any(
+                existing.name == artifact.name and existing.path == artifact.path
+                for existing in merged
+            ):
+                merged.append(artifact)
+        return merged
 
     def _spawn_background(self, pipeline_id: str, run_id: str, payload: PipelineRunInput) -> None:
         def runner() -> None:

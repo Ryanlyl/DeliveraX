@@ -4,11 +4,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api_server.config import get_settings
-from api_server.routers import artifacts, health, pipelines, providers, stages
+from api_server.routers import artifacts, checkpoints, health, pipelines, providers, stages
 from api_server.engine.run_store import JsonPipelineRunStore
 from api_server.engine.runner import PipelineRunner
 from api_server.services.approval_service import ApprovalService
 from api_server.services.artifact_service import ArtifactService
+from api_server.services.checkpoint_service import CheckpointService
 from api_server.services.pipeline_service import PipelineService
 from api_server.services.stage_executor import StageExecutor
 from api_server.stage_registry import StageRegistry
@@ -47,11 +48,20 @@ def create_app() -> FastAPI:
         run_store=app.state.pipeline_run_store,
     )
     app.state.artifact_service = ArtifactService(settings.resolved_artifacts_root)
-    app.state.approval_service = ApprovalService(store)
+    app.state.checkpoint_service = CheckpointService(
+        store=store,
+        registry=registry,
+        pipeline_service=app.state.pipeline_service,
+        run_store=app.state.pipeline_run_store,
+        artifacts_root=settings.resolved_artifacts_root,
+    )
+    app.state.pipeline_service.checkpoint_service = app.state.checkpoint_service
+    app.state.approval_service = ApprovalService(store, app.state.checkpoint_service)
 
     app.include_router(health.router)
     app.include_router(stages.router, prefix=settings.api_prefix)
     app.include_router(pipelines.router, prefix=settings.api_prefix)
+    app.include_router(checkpoints.router, prefix=settings.api_prefix)
     app.include_router(providers.router, prefix=settings.api_prefix)
     app.include_router(artifacts.router, prefix=settings.api_prefix)
     return app

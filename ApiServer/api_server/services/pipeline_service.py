@@ -40,6 +40,7 @@ class PipelineService:
         self.registry = registry
         self.executor = executor
         self.artifacts_root = artifacts_root
+        self.checkpoint_service = None
 
     def create(self, request: PipelineCreateRequest) -> PipelineRecord:
         pipeline_id = request.pipeline_id or uuid4().hex
@@ -82,6 +83,10 @@ class PipelineService:
         pipeline = self.store.get(pipeline_id)
         stage_record = self._get_stage_record(pipeline, stage_id)
         self.registry.runner_for(stage_id)
+        input_artifacts = self._merge_rerun_input_artifacts(
+            stage_record,
+            input_data.input_artifacts,
+        )
 
         stage_record.status = "running"
         stage_record.started_at = datetime.now(timezone.utc)
@@ -93,7 +98,7 @@ class PipelineService:
             pipeline_id=pipeline_id,
             stage_id=stage_id,
             run_id=input_data.run_id or f"{pipeline_id}-{stage_id}-{uuid4().hex[:8]}",
-            input_artifacts=input_data.input_artifacts,
+            input_artifacts=input_artifacts,
             output_dir=self.artifacts_root,
             repo_path=input_data.repo_path or pipeline.repo_path,
             options=self._stage_options(pipeline, stage_id, input_data.options),
@@ -123,6 +128,8 @@ class PipelineService:
         self._replace_stage_record(pipeline, updated)
         pipeline.status = self._derive_status(pipeline)
         self.store.save(pipeline)
+        if updated.status == "pending_approval":
+            self._checkpoint_service().create_or_update_pending_checkpoint(pipeline, updated)
         return pipeline
 
     async def run_pipeline(self, pipeline_id: str, input_data: PipelineRunInput) -> PipelineRecord:
@@ -292,6 +299,36 @@ class PipelineService:
             return dict(definition.stage_by_id(stage_id).options)
         except KeyError:
             return {}
+
+    def _checkpoint_service(self):
+        if self.checkpoint_service is None:
+            from api_server.services.checkpoint_service import CheckpointService
+
+            self.checkpoint_service = CheckpointService(
+                store=self.store,
+                registry=self.registry,
+                pipeline_service=self,
+                artifacts_root=self.artifacts_root,
+            )
+        return self.checkpoint_service
+
+    def _merge_rerun_input_artifacts(
+        self,
+        stage: StageRecord,
+        input_artifacts: list[ArtifactRef],
+    ) -> list[ArtifactRef]:
+        merged = list(input_artifacts)
+        for item in stage.data.get("rerun_input_artifacts") or []:
+            try:
+                artifact = item if isinstance(item, ArtifactRef) else ArtifactRef.model_validate(item)
+            except Exception:
+                continue
+            if not any(self._artifact_key(existing) == self._artifact_key(artifact) for existing in merged):
+                merged.append(artifact)
+        return merged
+
+    def _artifact_key(self, artifact: ArtifactRef) -> tuple[str, str]:
+        return artifact.name, artifact.path
 
     def _derive_status(self, pipeline: PipelineRecord) -> PipelineStatus:
         statuses = [stage.status for stage in pipeline.stages]

@@ -88,6 +88,9 @@
       "agent_ids": ["sol_design"],
       "module": "solution_design.stage",
       "depends_on": ["requirements"],
+      "checkpoint": true,
+      "checkpoint_label": "方案设计审批",
+      "checkpoint_description": "AI 已生成技术方案，请确认实现范围、文件变更计划、测试计划与风险后继续。",
       "description": "基于 PRD 与仓库上下文生成技术方案。"
     },
     {
@@ -110,12 +113,12 @@
       "id": "review",
       "name": "代码评审",
       "agent_ids": ["review_gate"],
-      "module": "ReviewGate.review_gate.stage",
+      "module": "review_gate.stage",
       "depends_on": ["test"],
       "checkpoint": true,
       "checkpoint_label": "代码评审确认",
-      "checkpoint_description": "AI 已生成代码评审报告，请确认是否允许进入交付集成阶段。",
-      "description": "占位阶段，等待 ReviewGate 接入统一 run_stage 契约。"
+      "checkpoint_description": "AI 已完成代码评审，请确认代码变更、测试结果与风险是否允许进入交付集成。",
+      "description": "读取代码变更、测试结果与设计产物，生成确定性的评审报告并等待人工确认。"
     },
     {
       "id": "integration",

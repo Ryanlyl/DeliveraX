@@ -10,7 +10,7 @@ from api_server.bootstrap import ensure_repo_paths
 
 ensure_repo_paths()
 
-from api_server.engine.models import PipelineRun
+from api_server.engine.models import CheckpointRecord, PipelineRun
 from stage_contracts import ArtifactRef, StageError, StageRunResult, StageStatus
 
 
@@ -130,7 +130,15 @@ class PipelineRunInput(BaseModel):
 class ApprovalRequest(BaseModel):
     reviewer: str | None = None
     comment: str | None = None
+    reason: str | None = None
     continue_pipeline: bool = False
+
+
+class CheckpointDecisionRequest(BaseModel):
+    reviewer: str | None = None
+    comment: str | None = None
+    reason: str | None = None
+    continue_pipeline: bool = True
 
 
 class StageRecord(BaseModel):
@@ -207,3 +215,12 @@ class ArtifactListResponse(BaseModel):
 class ArtifactTextResponse(BaseModel):
     path: str
     content: str
+
+
+class CurrentCheckpointResponse(BaseModel):
+    pipeline_id: str
+    run_id: str | None = None
+    checkpoint: CheckpointRecord | None = None
+    stage: StageRecord | None = None
+    artifacts: list[ArtifactRef] = Field(default_factory=list)
+    human_output: str | None = None

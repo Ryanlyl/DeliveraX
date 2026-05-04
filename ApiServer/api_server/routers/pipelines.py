@@ -122,15 +122,7 @@ async def approve_stage(pipeline_id: str, stage_id: str, payload: ApprovalReques
 @router.post("/{pipeline_id}/stages/{stage_id}/reject", response_model=PipelineRecord)
 def reject_stage(pipeline_id: str, stage_id: str, payload: ApprovalRequest, request: Request) -> PipelineRecord:
     try:
-        pipeline = request.app.state.approval_service.reject(pipeline_id, stage_id, payload)
-        latest_run_id = getattr(pipeline, "latest_run_id", None)
-        request.app.state.pipeline_runner.reject_run(
-            pipeline_id,
-            latest_run_id,
-            stage_id=stage_id,
-            reason=payload.comment,
-        )
-        return request.app.state.pipeline_service.get(pipeline_id)
+        return request.app.state.approval_service.reject(pipeline_id, stage_id, payload)
     except PipelineNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
     except KeyError as exc:

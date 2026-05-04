@@ -1,48 +1,32 @@
-# CodeReview
+# ReviewGate
 
-LLM-assisted code review stage: consumes **technical design**, **code diff**, and **`code_test_result.json`**, emits **`CodeReview/Output/<task-id>/code_review_result.json`** (plus optional Markdown reports).
+ReviewGate is the deterministic human-in-the-loop code review checkpoint stage for DeliveraX.
 
-Aligned with DeliveraX `findings.md` CodeReview Agent v1 freeze.
+The stage entrypoint is:
 
-## Prerequisites
-
-```bash
-python -m pip install -r requirements.txt
+```python
+review_gate.stage.run_stage(request)
 ```
 
-## Environment (same family as CodeTest / CodeGen)
+It consumes upstream `ArtifactRef` inputs, preferring:
 
-Lookup order **`CODEREVIEW_*` → `CODETEST_*` → `CODEGEN_*` → `DEEPSEEK_*` / `OPENAI_API_KEY`** (see `agent/llm.py`).
+- `code_changes`
+- `codegen_result`
+- `codegen_report`
+- `code_test_result`
+- `code_test_report`
+- `technical_design`
+- `requirement_prd` / `requirement_spec`
 
-- `CODEREVIEW_LLM_MAX_CALLS` — rounds budget (chunks + final merge each count as **1**). Default inherits `CODETEST_LLM_MAX_CALLS` rounded to **≥12** chunks default.
-- `CODEREVIEW_DIFF_CHUNK_LINES` — max diff lines per LLM chunk (default **350**).
+It does not call a real LLM. It reads the diff and test result artifacts, produces a machine review result, and returns `pending_approval` by default so a human can confirm before integration.
 
-## CLI
-
-Required: **`--test-result`**. Provide **`--design` + `--diff`**, **or** only **`--codegen-result`** to resolve missing paths.
-
-```bash
-cd CodeReview
-python run.py --test-result ..\CodeTest\Output\<task>\code_test_result.json ^
-  --design ..\SolutionDesign\Output\technical_design_*.md ^
-  --diff ..\CodeGen\Output\<task>\code_changes.diff
-```
-
-Optional:
-
-- `--requirement …\requirement_spec.json`
-- `--codegen-result` — fill paths + mismatch **warnings**
-- `--policy-pack policy.md`
-- `--local-only` — no LLM, `status: "test"`
-- `--max-llm-calls N`
-- `--output-dir …` — default `./Output`
-
-Exit code: **`2`** if any issue has **`severity: blocker`**; otherwise **`0`**. **`merge_recommendation: blocked`** without a blocker issue does **not** force exit **2**.
+Set `options.requires_approval=false` or `options.auto_approve=true` to return `succeeded` for local demos and tests.
 
 ## Outputs
 
-| File | Purpose |
-|------|---------|
-| `code_review_result.json` | Machine source; **`status`** is DI-compatible (`approved` / `changes_requested` / `rejected`). Fine-grained agent opinion → **`merge_recommendation`** |
-| `code_review_report.md` | Human-readable |
-| `feedback_review.md` | Feed into `--repair-feedback` style loops |
+- `review_report.md` as `review_report`, role `display`
+- `review_result.json` as `review_result`, role `machine`
+- `feedback_review.md` as a compatibility handoff artifact
+- standard `manifest.json`, `result.json`, `input.json`, `logs.txt`, and `human_output.md` via `write_stage_artifacts()`
+
+`review_result.json` includes `verdict`, `summary`, `risks`, `checklist`, `upstream_artifacts`, `test_status`, `diff_stats`, and `requires_human_approval`.

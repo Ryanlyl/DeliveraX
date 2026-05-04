@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from stage_contracts import (
     ArtifactRef,
-    StageError,
     StageRunRequest,
     StageRunResult,
     resolve_stage_artifact_dir,
@@ -14,81 +14,85 @@ from stage_contracts import (
 )
 
 
+INPUT_PRIORITY = (
+    "code_changes",
+    "codegen_result",
+    "codegen_report",
+    "code_test_result",
+    "code_test_report",
+    "technical_design",
+    "requirement_prd",
+    "requirement_spec",
+)
+
+FAILED_TEST_STATUSES = {
+    "failed",
+    "fail",
+    "failure",
+    "error",
+    "errored",
+    "blocked",
+}
+PASSED_TEST_STATUSES = {
+    "passed",
+    "pass",
+    "ok",
+    "success",
+    "succeeded",
+}
+
+
 def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
-    logs = ["ReviewGate stage started"]
+    logs = ["ReviewGate deterministic stage started"]
     try:
-        from ReviewGate.agent.runner import run_codereview
-
         stage_dir = resolve_stage_artifact_dir(request)
         stage_dir.mkdir(parents=True, exist_ok=True)
 
-        codegen_result_path = request.options.get("codegen_result_path") or _first_artifact_path(
-            request,
-            "codegen_result",
-        )
-        design_path = request.options.get("design_path") or _first_artifact_path(
-            request,
-            "technical_design",
-            "human_output",
-        )
-        diff_path = request.options.get("diff_path") or _first_artifact_path(
-            request,
-            "code_changes",
-        )
-        test_result_path = request.options.get("test_result_path") or _first_artifact_path(
-            request,
-            "code_test_result",
-        )
-        requirement_path = request.options.get("requirement_path") or _first_artifact_path(
-            request,
-            "requirement_spec",
-            "requirement_prd",
-        )
-        policy_pack_path = request.options.get("policy_pack_path") or _first_artifact_path(
-            request,
-            "policy_pack",
+        selected = _selected_artifacts(request)
+        diff_text, diff_source = _load_diff(request, selected)
+        test_payload, test_text, test_source = _load_test_result(request, selected)
+        test_status = _infer_test_status(test_payload, test_text)
+        diff_stats = _diff_stats(diff_text)
+        verdict = _verdict(test_status, diff_stats)
+        risks = _risks(verdict, test_status, diff_stats)
+        checklist = _checklist(test_status, diff_stats, selected)
+        requires_human_approval = _requires_human_approval(request.options)
+
+        review_result = {
+            "verdict": verdict,
+            "summary": _summary(verdict, test_status, diff_stats),
+            "risks": risks,
+            "checklist": checklist,
+            "upstream_artifacts": [
+                artifact.model_dump(mode="json") for artifact in _ordered_upstream_artifacts(selected)
+            ],
+            "test_status": test_status,
+            "diff_stats": diff_stats,
+            "requires_human_approval": requires_human_approval,
+            "diff_source": str(diff_source) if diff_source else None,
+            "test_source": str(test_source) if test_source else None,
+        }
+
+        report = _render_report(review_result)
+        report_path = stage_dir / "review_report.md"
+        result_path = stage_dir / "review_result.json"
+        feedback_path = stage_dir / "feedback_review.md"
+
+        report_path.write_text(report.rstrip() + "\n", encoding="utf-8")
+        feedback_path.write_text(report.rstrip() + "\n", encoding="utf-8")
+        result_path.write_text(
+            json.dumps(review_result, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
         )
 
-        if not test_result_path:
-            raise ValueError("ReviewGate requires a code_test_result artifact or options.test_result_path.")
-
-        legacy_output_dir = stage_dir / "legacy_output"
-        result_state = run_codereview(
-            codegen_result_path=str(codegen_result_path) if codegen_result_path else None,
-            design_path_cli=str(design_path) if design_path else None,
-            diff_path_cli=str(diff_path) if diff_path else None,
-            test_result_path=str(test_result_path),
-            requirement_path_cli=str(requirement_path) if requirement_path else None,
-            task_id_cli=str(request.options.get("task_id") or request.run_id),
-            output_dir=str(legacy_output_dir),
-            policy_pack_path=str(policy_pack_path) if policy_pack_path else None,
-            local_only=_bool_option(request.options, "local_only", False),
-            max_llm_calls_override=_optional_int(request.options.get("max_llm_calls")),
-        )
-
-        review_status = str(result_state.get("status") or "").strip().lower()
-        merge_recommendation = str(result_state.get("merge_recommendation") or "").strip().lower()
-        output_artifacts = _build_output_artifacts(result_state)
-        report_path = result_state.get("code_review_report_path")
-        human_output = None
-        if report_path and Path(str(report_path)).is_file():
-            human_output = Path(str(report_path)).read_text(encoding="utf-8")
-        else:
-            human_output = str(result_state.get("summary") or "")
-
-        status = _map_status(
-            review_status=review_status,
-            merge_recommendation=merge_recommendation,
-            options=request.options,
-        )
+        output_artifacts = [
+            ArtifactRef(name="review_report", type="markdown", path=str(report_path), role="display"),
+            ArtifactRef(name="review_result", type="json", path=str(result_path), role="machine"),
+            ArtifactRef(name="feedback_review", type="markdown", path=str(feedback_path), role="handoff"),
+        ]
         ended_at = datetime.now(timezone.utc)
-        error = _build_error(
-            api_status=status,
-            review_status=review_status,
-            merge_recommendation=merge_recommendation,
-            result_state=result_state,
-        )
+        status = "pending_approval" if requires_human_approval else "succeeded"
         result = StageRunResult(
             pipeline_id=request.pipeline_id,
             stage_id=request.stage_id,
@@ -99,30 +103,26 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
             duration_ms=max(0, int((ended_at - started_at).total_seconds() * 1000)),
             input_artifacts=request.input_artifacts,
             output_artifacts=output_artifacts,
-            human_output=human_output,
+            human_output=report,
             data={
-                **dict(result_state),
-                "review_status": review_status,
-                "merge_recommendation": merge_recommendation,
+                **review_result,
+                "review_status": verdict,
+                "merge_recommendation": _merge_recommendation(verdict),
             },
             logs=[
                 *logs,
-                f"ReviewGate completed with review status: {review_status or 'unknown'}",
-                f"ReviewGate merge recommendation: {merge_recommendation or 'unknown'}",
-                str(result_state.get("summary") or ""),
+                f"ReviewGate verdict: {verdict}",
+                f"ReviewGate test status: {test_status}",
             ],
-            error=error,
         )
         return write_stage_artifacts(
             request=request,
             result=result,
             input_payload={
-                "codegen_result_path": str(codegen_result_path) if codegen_result_path else None,
-                "design_path": str(design_path) if design_path else None,
-                "diff_path": str(diff_path) if diff_path else None,
-                "test_result_path": str(test_result_path),
-                "requirement_path": str(requirement_path) if requirement_path else None,
-                "policy_pack_path": str(policy_pack_path) if policy_pack_path else None,
+                "selected_artifacts": {
+                    name: artifact.model_dump(mode="json")
+                    for name, artifact in selected.items()
+                },
                 "options": request.options,
             },
         )
@@ -131,21 +131,270 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         return write_stage_artifacts(request=request, result=result)
 
 
-def _first_artifact_path(request: StageRunRequest, *names: str) -> str | None:
-    wanted = set(names)
+def _selected_artifacts(request: StageRunRequest) -> dict[str, ArtifactRef]:
+    selected: dict[str, ArtifactRef] = {}
+    for name in INPUT_PRIORITY:
+        artifact = _first_artifact(request, name)
+        if artifact is not None:
+            selected[name] = artifact
+    return selected
+
+
+def _first_artifact(request: StageRunRequest, name: str) -> ArtifactRef | None:
     for artifact in request.input_artifacts:
-        if artifact.name in wanted:
-            return artifact.path
+        if artifact.name == name:
+            return artifact
     return None
 
 
-def _optional_int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
+def _ordered_upstream_artifacts(selected: dict[str, ArtifactRef]) -> list[ArtifactRef]:
+    return [selected[name] for name in INPUT_PRIORITY if name in selected]
+
+
+def _load_diff(
+    request: StageRunRequest,
+    selected: dict[str, ArtifactRef],
+) -> tuple[str, Path | None]:
+    explicit = request.options.get("diff_path")
+    if explicit:
+        path = Path(str(explicit))
+        return _read_text(path), path
+
+    artifact = selected.get("code_changes")
+    if artifact is not None:
+        path = Path(artifact.path)
+        return _read_text(path), path
+
+    codegen_result = _load_json_artifact(selected.get("codegen_result"))
+    for key in ("diff_path", "patch_path", "code_changes_path"):
+        raw_path = codegen_result.get(key)
+        if raw_path:
+            path = Path(str(raw_path))
+            return _read_text(path), path
+    for key in ("diff", "patch", "changes"):
+        value = codegen_result.get(key)
+        if isinstance(value, str):
+            return value, None
+
+    report = selected.get("codegen_report")
+    if report is not None:
+        path = Path(report.path)
+        return _read_text(path), path
+    return "", None
+
+
+def _load_test_result(
+    request: StageRunRequest,
+    selected: dict[str, ArtifactRef],
+) -> tuple[dict[str, Any], str, Path | None]:
+    explicit = request.options.get("test_result_path")
+    if explicit:
+        path = Path(str(explicit))
+        text = _read_text(path)
+        return _parse_json(text), text, path
+
+    artifact = selected.get("code_test_result")
+    if artifact is not None:
+        path = Path(artifact.path)
+        text = _read_text(path)
+        return _parse_json(text), text, path
+
+    report = selected.get("code_test_report")
+    if report is not None:
+        path = Path(report.path)
+        text = _read_text(path)
+        return {}, text, path
+    return {}, "", None
+
+
+def _read_text(path: Path) -> str:
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _load_json_artifact(artifact: ArtifactRef | None) -> dict[str, Any]:
+    if artifact is None:
+        return {}
+    return _parse_json(_read_text(Path(artifact.path)))
+
+
+def _parse_json(text: str) -> dict[str, Any]:
     try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _infer_test_status(payload: dict[str, Any], text: str) -> str:
+    candidates = [
+        payload.get("status"),
+        payload.get("test_status"),
+        payload.get("legacy_status"),
+        payload.get("result"),
+    ]
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        normalized = str(candidate).strip().lower()
+        if normalized in FAILED_TEST_STATUSES:
+            return "failed"
+        if normalized in PASSED_TEST_STATUSES:
+            return "passed"
+
+    errors = payload.get("errors")
+    if isinstance(errors, list) and errors:
+        return "failed"
+
+    lowered = text.lower()
+    if any(token in lowered for token in ("failed", "failure", "traceback", "assertionerror")):
+        return "failed"
+    if any(token in lowered for token in ("passed", "success", "succeeded")):
+        return "passed"
+    return "unknown"
+
+
+def _diff_stats(diff_text: str) -> dict[str, Any]:
+    added = 0
+    deleted = 0
+    files: set[str] = set()
+    for line in diff_text.splitlines():
+        if line.startswith("diff --git "):
+            parts = line.split()
+            if len(parts) >= 4:
+                files.add(parts[3].removeprefix("b/"))
+            continue
+        if line.startswith("+++ ") or line.startswith("--- "):
+            continue
+        if line.startswith("+"):
+            added += 1
+        elif line.startswith("-"):
+            deleted += 1
+
+    has_changes = bool(diff_text.strip()) and (added > 0 or deleted > 0 or bool(files))
+    return {
+        "files_changed": len(files) if files else (1 if added or deleted else 0),
+        "lines_added": added,
+        "lines_deleted": deleted,
+        "has_changes": has_changes,
+    }
+
+
+def _verdict(test_status: str, diff_stats: dict[str, Any]) -> str:
+    if test_status == "failed":
+        return "needs_changes"
+    if not diff_stats.get("has_changes"):
+        return "no_changes_detected"
+    if test_status == "passed":
+        return "approved_with_notes"
+    return "needs_changes"
+
+
+def _summary(verdict: str, test_status: str, diff_stats: dict[str, Any]) -> str:
+    if verdict == "needs_changes" and test_status == "failed":
+        return "Tests are failing, so the change needs follow-up before delivery integration."
+    if verdict == "no_changes_detected":
+        return "No code diff was detected in the upstream artifacts."
+    if verdict == "approved_with_notes":
+        return (
+            f"Tests passed and a non-empty diff was detected "
+            f"({diff_stats.get('files_changed', 0)} files changed)."
+        )
+    return "ReviewGate could not establish a clean approval signal from the provided artifacts."
+
+
+def _risks(verdict: str, test_status: str, diff_stats: dict[str, Any]) -> list[str]:
+    risks: list[str] = []
+    if test_status == "failed":
+        risks.append("Automated tests reported failure.")
+    if test_status == "unknown":
+        risks.append("Test status could not be determined from the provided artifacts.")
+    if not diff_stats.get("has_changes"):
+        risks.append("No code changes were detected for review.")
+    if verdict == "approved_with_notes":
+        risks.append("Human reviewer should confirm the diff scope matches the approved solution design.")
+    return risks
+
+
+def _checklist(
+    test_status: str,
+    diff_stats: dict[str, Any],
+    selected: dict[str, ArtifactRef],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "item": "Code diff present",
+            "passed": bool(diff_stats.get("has_changes")),
+            "detail": f"{diff_stats.get('files_changed', 0)} files changed",
+        },
+        {
+            "item": "Tests passed",
+            "passed": test_status == "passed",
+            "detail": test_status,
+        },
+        {
+            "item": "Technical design available",
+            "passed": "technical_design" in selected,
+            "detail": selected.get("technical_design").path if selected.get("technical_design") else None,
+        },
+        {
+            "item": "Machine review result generated",
+            "passed": True,
+            "detail": "review_result.json",
+        },
+    ]
+
+
+def _render_report(review_result: dict[str, Any]) -> str:
+    checklist = "\n".join(
+        f"- [{'x' if item.get('passed') else ' '}] {item.get('item')}: {item.get('detail') or ''}"
+        for item in review_result["checklist"]
+    )
+    risks = "\n".join(f"- {risk}" for risk in review_result["risks"]) or "- No deterministic risks detected."
+    artifacts = "\n".join(
+        f"- `{artifact['name']}` ({artifact['type']}): {artifact['path']}"
+        for artifact in review_result["upstream_artifacts"]
+    ) or "- No upstream artifacts provided."
+    diff_stats = review_result["diff_stats"]
+    return f"""# ReviewGate Report
+
+## Verdict
+
+{review_result["verdict"]}
+
+## Summary
+
+{review_result["summary"]}
+
+## Test Status
+
+{review_result["test_status"]}
+
+## Diff Stats
+
+- Files changed: {diff_stats.get("files_changed", 0)}
+- Lines added: {diff_stats.get("lines_added", 0)}
+- Lines deleted: {diff_stats.get("lines_deleted", 0)}
+
+## Checklist
+
+{checklist}
+
+## Risks
+
+{risks}
+
+## Upstream Artifacts
+
+{artifacts}
+"""
+
+
+def _requires_human_approval(options: dict[str, Any]) -> bool:
+    if _bool_option(options, "auto_approve", False):
+        return False
+    return _bool_option(options, "requires_approval", True)
 
 
 def _bool_option(options: dict[str, Any], key: str, default: bool) -> bool:
@@ -155,64 +404,9 @@ def _bool_option(options: dict[str, Any], key: str, default: bool) -> bool:
     return bool(value)
 
 
-def _map_status(
-    *,
-    review_status: str,
-    merge_recommendation: str,
-    options: dict[str, Any],
-) -> str:
-    requires_approval = _bool_option(options, "requires_approval", True)
-    if review_status in {"approved", "approve", "pass", "passed", "ok"}:
-        return "pending_approval" if requires_approval else "succeeded"
-    if review_status in {"rejected", "reject"}:
-        return "rejected"
-    if review_status == "test":
-        if requires_approval:
-            return "pending_approval"
-        if _bool_option(options, "allow_local_review_success", False):
-            return "succeeded"
-        return "failed"
-    if not review_status and merge_recommendation in {"approve", "approve_with_nits"} and not requires_approval:
-        return "succeeded"
-    return "failed"
-
-
-def _build_output_artifacts(result_state: dict[str, Any]) -> list[ArtifactRef]:
-    candidates = [
-        ("review_result", "json", result_state.get("result_json_path"), "machine"),
-        ("review_report", "markdown", result_state.get("code_review_report_path"), "display"),
-        ("feedback_review", "markdown", result_state.get("feedback_review_path"), "handoff"),
-    ]
-    artifacts: list[ArtifactRef] = []
-    for name, artifact_type, raw_path, role in candidates:
-        if not raw_path:
-            continue
-        path = Path(str(raw_path))
-        if not path.is_file():
-            continue
-        artifacts.append(ArtifactRef(name=name, type=artifact_type, path=str(path), role=role))
-    return artifacts
-
-
-def _build_error(
-    *,
-    api_status: str,
-    review_status: str,
-    merge_recommendation: str,
-    result_state: dict[str, Any],
-) -> StageError | None:
-    if api_status not in {"failed", "rejected"}:
-        return None
-    issues = result_state.get("issues") or []
-    errors = result_state.get("errors") or []
-    summary = str(result_state.get("summary") or "ReviewGate did not approve this change.")
-    return StageError(
-        code="ReviewGateRejected" if api_status == "rejected" else "ReviewGateBlocked",
-        message=summary,
-        details={
-            "review_status": review_status,
-            "merge_recommendation": merge_recommendation,
-            "issue_count": len(issues) if isinstance(issues, list) else 0,
-            "errors": errors if isinstance(errors, list) else [],
-        },
-    )
+def _merge_recommendation(verdict: str) -> str:
+    if verdict == "approved_with_notes":
+        return "approve_with_notes"
+    if verdict == "no_changes_detected":
+        return "blocked"
+    return "changes_requested"

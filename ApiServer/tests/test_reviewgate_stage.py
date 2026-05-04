@@ -36,7 +36,8 @@ def test_reviewgate_stage_runs_local_only_from_api_contract() -> None:
 
         artifact_names = {artifact.name for artifact in result.output_artifacts}
         assert result.status == "pending_approval"
-        assert result.data["review_status"] == "test"
+        assert result.data["verdict"] == "approved_with_notes"
+        assert result.data["test_status"] == "passed"
         assert {"review_result", "review_report", "feedback_review", "human_output"} <= artifact_names
         assert (tmp_root / "artifacts" / "reviewgate-demo" / "review" / "manifest.json").exists()
     finally:

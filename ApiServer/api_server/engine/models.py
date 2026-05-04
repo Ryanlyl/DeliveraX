@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from api_server.bootstrap import ensure_repo_paths
 
@@ -86,6 +86,7 @@ class PipelineRun(BaseModel):
     pause_requested: bool = False
     terminate_requested: bool = False
     artifact_refs_by_stage: dict[str, list[ArtifactRef]] = Field(default_factory=dict)
+    pending_input_artifacts_by_stage: dict[str, list[ArtifactRef]] = Field(default_factory=dict)
     checkpoint_ids: list[str] = Field(default_factory=list)
     error: StageError | None = None
     logs: list[str] = Field(default_factory=list)
@@ -100,11 +101,36 @@ CheckpointStatus = Literal["pending", "approved", "rejected"]
 
 class CheckpointRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
-    pipeline_run_id: str
+    pipeline_id: str = ""
+    run_id: str | None = None
+    pipeline_run_id: str | None = None
     stage_id: str
     status: CheckpointStatus = "pending"
+    title: str
+    description: str | None = None
     reviewer: str | None = None
+    comment: str | None = None
     reason: str | None = None
+    reject_reason: str | None = None
     artifact_refs: list[ArtifactRef] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     decided_at: datetime | None = None
+    rerun_stage_id: str | None = None
+    reject_artifact: ArtifactRef | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_fields(cls, value):
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        if data.get("run_id") is None and data.get("pipeline_run_id"):
+            data["run_id"] = data["pipeline_run_id"]
+        if data.get("pipeline_run_id") is None and data.get("run_id"):
+            data["pipeline_run_id"] = data["run_id"]
+        if data.get("reject_reason") is None and data.get("reason"):
+            data["reject_reason"] = data["reason"]
+        if data.get("reason") is None and data.get("reject_reason"):
+            data["reason"] = data["reject_reason"]
+        data.setdefault("title", data.get("stage_id", "Checkpoint"))
+        return data
