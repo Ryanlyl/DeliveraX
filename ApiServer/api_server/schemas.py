@@ -10,17 +10,20 @@ from api_server.bootstrap import ensure_repo_paths
 
 ensure_repo_paths()
 
+from api_server.engine.models import PipelineRun
 from stage_contracts import ArtifactRef, StageError, StageRunResult, StageStatus
 
 
 PipelineStatus = Literal[
     "queued",
     "running",
+    "paused",
     "pending_approval",
     "succeeded",
     "failed",
     "rejected",
     "cancelled",
+    "terminated",
 ]
 
 
@@ -113,6 +116,7 @@ class PipelineRecord(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     options: dict[str, Any] = Field(default_factory=dict)
+    latest_run_id: str | None = None
     stages: list[StageRecord] = Field(default_factory=list)
 
 

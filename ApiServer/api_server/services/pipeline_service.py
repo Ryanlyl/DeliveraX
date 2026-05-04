@@ -6,6 +6,7 @@ from uuid import uuid4
 from api_server.engine.models import (
     AgentDefinition,
     PipelineDefinition,
+    PipelineRun,
     StageDefinition as EngineStageDefinition,
 )
 from api_server.engine.planner import collect_upstream_artifacts, topological_stage_order
@@ -57,6 +58,20 @@ class PipelineService:
 
     def get(self, pipeline_id: str) -> PipelineRecord:
         return self.store.get(pipeline_id)
+
+    def mirror_run_status_to_pipeline(self, run: PipelineRun) -> PipelineRecord:
+        pipeline = self.store.get(run.pipeline_id)
+        pipeline.latest_run_id = run.id
+        status = run.status
+        if status == "terminated":
+            pipeline.status = "terminated"
+        elif status == "paused":
+            pipeline.status = "paused"
+        elif status in {"queued", "running", "pending_approval", "succeeded", "failed", "rejected", "cancelled"}:
+            pipeline.status = status  # type: ignore[assignment]
+        else:
+            pipeline.status = "running"
+        return self.store.save(pipeline)
 
     async def run_stage(self, pipeline_id: str, stage_id: str, input_data: StageRunInput) -> PipelineRecord:
         pipeline = self.store.get(pipeline_id)

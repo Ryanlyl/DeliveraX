@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api_server.config import get_settings
 from api_server.routers import artifacts, health, pipelines, stages
+from api_server.engine.run_store import JsonPipelineRunStore
+from api_server.engine.runner import PipelineRunner
 from api_server.services.approval_service import ApprovalService
 from api_server.services.artifact_service import ArtifactService
 from api_server.services.pipeline_service import PipelineService
@@ -32,12 +34,17 @@ def create_app() -> FastAPI:
     app.state.settings = settings
     app.state.stage_registry = registry
     app.state.pipeline_store = store
+    app.state.pipeline_run_store = JsonPipelineRunStore(settings.resolved_artifacts_root)
     app.state.stage_executor = executor
     app.state.pipeline_service = PipelineService(
         store=store,
         registry=registry,
         executor=executor,
         artifacts_root=str(settings.resolved_artifacts_root),
+    )
+    app.state.pipeline_runner = PipelineRunner(
+        service=app.state.pipeline_service,
+        run_store=app.state.pipeline_run_store,
     )
     app.state.artifact_service = ArtifactService(settings.resolved_artifacts_root)
     app.state.approval_service = ApprovalService(store)

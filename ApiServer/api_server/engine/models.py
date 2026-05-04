@@ -10,7 +10,7 @@ from api_server.bootstrap import ensure_repo_paths
 
 ensure_repo_paths()
 
-from stage_contracts import ArtifactRef
+from stage_contracts import ArtifactRef, StageError
 
 
 class PipelineDefinitionError(ValueError):
@@ -70,15 +70,25 @@ class PipelineDefinition(BaseModel):
 
 class PipelineRun(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
-    pipeline_definition_id: str
+    pipeline_id: str
+    pipeline_definition_id: str | None = None
     status: str = "queued"
     stage_order: list[str] = Field(default_factory=list)
     current_stage_id: str | None = None
+    next_stage_id: str | None = None
     completed_stage_ids: list[str] = Field(default_factory=list)
-    blocked_stage_ids: list[str] = Field(default_factory=list)
+    failed_stage_id: str | None = None
+    rejected_stage_id: str | None = None
+    pause_requested: bool = False
+    terminate_requested: bool = False
     artifact_refs_by_stage: dict[str, list[ArtifactRef]] = Field(default_factory=dict)
+    checkpoint_ids: list[str] = Field(default_factory=list)
+    error: StageError | None = None
+    logs: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
 
 
 CheckpointStatus = Literal["pending", "approved", "rejected"]
