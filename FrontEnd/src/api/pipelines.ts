@@ -1,6 +1,8 @@
 import { apiRequest } from "./client";
 import type {
   ApprovalRequest,
+  CheckpointDecisionRequest,
+  CurrentCheckpointResponse,
   PipelineCreateRequest,
   PipelineRecord,
   PipelineRun,
@@ -90,4 +92,24 @@ export function rejectStage(pipelineId: string, stageId: string, payload: Approv
       body: payload,
     },
   );
+}
+
+export function getCurrentCheckpoint(pipelineId: string) {
+  return apiRequest<CurrentCheckpointResponse>(
+    `/api/pipelines/${encodeURIComponent(pipelineId)}/checkpoints/current`,
+  );
+}
+
+export function approveCheckpoint(checkpointId: string, payload: CheckpointDecisionRequest = {}) {
+  return apiRequest<PipelineRecord>(`/api/checkpoints/${encodeURIComponent(checkpointId)}/approve`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function rejectCheckpoint(checkpointId: string, payload: CheckpointDecisionRequest = {}) {
+  return apiRequest<PipelineRecord>(`/api/checkpoints/${encodeURIComponent(checkpointId)}/reject`, {
+    method: "POST",
+    body: payload,
+  });
 }

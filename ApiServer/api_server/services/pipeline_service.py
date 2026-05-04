@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -209,10 +210,11 @@ class PipelineService:
             merged.setdefault("use_real_llm", llm_config.use_real_llm)
             merged.setdefault("local_only", llm_config.local_only)
             merged["agents"] = agent_payload.get("agents", [])
-            agents = merged["agents"]
-            merged["agent"] = agents[0] if agents else None
+            agents_val = merged["agents"]
+            merged["agent"] = agents_val[0] if agents_val else None
         except Exception:
-            pass
+            logging.exception("Failed to resolve LLM config for stage %s — stage will run without LLM", stage_id)
+            merged["llm"] = {"provider": "unknown", "local_only": True, "use_real_llm": False, "error": "LLM resolution failed"}
         return merged
 
     def _get_stage_record(self, pipeline: PipelineRecord, stage_id: str) -> StageRecord:

@@ -11,21 +11,30 @@ from api_server.providers.models import ProviderDefinition
 def provider_registry() -> dict[str, ProviderDefinition]:
     providers = [
         ProviderDefinition(
-            id="openai",
-            name="OpenAI",
-            kind="openai-compatible",
-            default_base_url="https://api.openai.com/v1",
-            api_key_env="OPENAI_API_KEY",
-            default_model="gpt-4o-mini",
-            available=True,
-        ),
-        ProviderDefinition(
             id="deepseek",
             name="DeepSeek",
             kind="openai-compatible",
             default_base_url="https://api.deepseek.com",
             api_key_env="DEEPSEEK_API_KEY",
             default_model="deepseek-chat",
+            available=True,
+        ),
+        ProviderDefinition(
+            id="qwen",
+            name="Qwen (通义千问)",
+            kind="openai-compatible",
+            default_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api_key_env="QWEN_API_KEY",
+            default_model="qwen-turbo",
+            available=True,
+        ),
+        ProviderDefinition(
+            id="openai",
+            name="OpenAI",
+            kind="openai-compatible",
+            default_base_url="https://api.openai.com/v1",
+            api_key_env="OPENAI_API_KEY",
+            default_model="gpt-4o-mini",
             available=True,
         ),
         ProviderDefinition(

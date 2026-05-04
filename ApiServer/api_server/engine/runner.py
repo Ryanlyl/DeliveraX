@@ -78,8 +78,8 @@ class PipelineRunner:
 
     def resume_run(self, pipeline_id: str, run_id: str | None = None) -> PipelineRun:
         run = self._resolve_run(pipeline_id, run_id)
-        # allow resume from paused/pending_approval/rejected/failed
-        if run.status in {"succeeded", "terminated"}:
+        # Guard: do not resume a run that is already active or finished
+        if run.status in {"succeeded", "terminated", "running"}:
             return run
         run.pause_requested = False
         run.terminate_requested = False

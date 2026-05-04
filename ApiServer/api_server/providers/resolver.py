@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from api_server.engine.models import AgentDefinition, PipelineDefinition, StageDefinition
 from api_server.providers.registry import provider_registry
 from api_server.schemas import LLMSelection, PipelineRecord
 from stage_contracts import LLMRuntimeConfig
+
+logger = logging.getLogger(__name__)
 
 
 def _coalesce_str(*values: str | None) -> str | None:
@@ -95,7 +98,16 @@ def resolve_llm_config(
         run_override.provider if run_override else None,
     )
     if not provider_id:
-        provider_id = "local"
+        # Fall back to the first available provider that has a configured API key
+        import os as _os
+        for pid, pdef in registry.items():
+            if pdef.available and pdef.api_key_env and _os.getenv(pdef.api_key_env):
+                provider_id = pid
+                logger.info("No provider specified — using first configured: %s", pid)
+                break
+    if not provider_id:
+        provider_id = "deepseek"
+        logger.warning("No provider specified and no API keys configured — using 'deepseek' (will fail at LLM call if key is missing)")
 
     provider_def = registry.get(provider_id)
 

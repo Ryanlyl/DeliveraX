@@ -17,10 +17,15 @@ class StageExecutor:
         llm_payload = request.options.get("llm") if isinstance(request.options, dict) else None
         config: LLMRuntimeConfig | None = None
         if isinstance(llm_payload, dict):
-            try:
-                config = LLMRuntimeConfig.model_validate(llm_payload)
-            except Exception:
-                config = None
+            if llm_payload.get("error"):
+                # LLM resolution failed upstream — log warning but continue (stage may handle nil config)
+                import logging
+                logging.warning("LLM config error for stage %s: %s", request.stage_id, llm_payload.get("error"))
+            else:
+                try:
+                    config = LLMRuntimeConfig.model_validate(llm_payload)
+                except Exception:
+                    config = None
         if inspect.iscoroutinefunction(runner):
             with llm_config_context(config):
                 return await runner(request)

@@ -91,7 +91,7 @@ class PipelineCreateRequest(BaseModel):
     name: str = "AI DevFlow Pipeline"
     requirement: str
     pipeline_id: str | None = None
-    provider: str = "local"
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
@@ -187,7 +187,7 @@ class PipelineRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     name: str
     status: PipelineStatus = "queued"
-    provider: str = "local"
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)

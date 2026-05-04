@@ -110,6 +110,42 @@ export type ApprovalRequest = {
   continue_pipeline?: boolean;
 };
 
+export type CheckpointStatus = "pending" | "approved" | "rejected";
+
+export type CheckpointRecord = {
+  id: string;
+  pipeline_id: string;
+  run_id?: string | null;
+  pipeline_run_id?: string | null;
+  stage_id: string;
+  status: CheckpointStatus;
+  title: string;
+  description?: string | null;
+  reviewer?: string | null;
+  comment?: string | null;
+  reason?: string | null;
+  reject_reason?: string | null;
+  artifact_refs: ArtifactRef[];
+  created_at: string;
+  decided_at?: string | null;
+};
+
+export type CurrentCheckpointResponse = {
+  pipeline_id: string;
+  run_id?: string | null;
+  checkpoint?: CheckpointRecord | null;
+  stage?: StageRecord | null;
+  artifacts: ArtifactRef[];
+  human_output?: string | null;
+};
+
+export type CheckpointDecisionRequest = {
+  reviewer?: string | null;
+  comment?: string | null;
+  reason?: string | null;
+  continue_pipeline?: boolean;
+};
+
 export type ArtifactListResponse = {
   pipeline_id: string;
   stage_id: string;
