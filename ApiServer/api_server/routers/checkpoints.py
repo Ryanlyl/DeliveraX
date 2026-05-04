@@ -18,6 +18,12 @@ router = APIRouter(tags=["checkpoints"])
 @router.get(
     "/pipelines/{pipeline_id}/checkpoints/current",
     response_model=CurrentCheckpointResponse,
+    summary="获取当前 Checkpoint",
+    description="返回 pipeline 当前待审批的 checkpoint，包含对应 stage 信息和产物列表。",
+    response_description="当前 checkpoint 详情，若无需审批则 checkpoint 字段为 null。",
+    responses={
+        404: {"description": "PIPELINE_NOT_FOUND"},
+    },
 )
 def get_current_checkpoint(pipeline_id: str, request: Request) -> CurrentCheckpointResponse:
     try:
@@ -26,7 +32,17 @@ def get_current_checkpoint(pipeline_id: str, request: Request) -> CurrentCheckpo
         raise HTTPException(status_code=404, detail=f"Pipeline not found: {pipeline_id}") from exc
 
 
-@router.post("/checkpoints/{checkpoint_id}/approve", response_model=PipelineRecord)
+@router.post(
+    "/checkpoints/{checkpoint_id}/approve",
+    response_model=PipelineRecord,
+    summary="批准 Checkpoint",
+    description="批准指定的 checkpoint，可选择是否继续 pipeline 执行。",
+    response_description="更新后的 Pipeline 记录。",
+    responses={
+        404: {"description": "CHECKPOINT_NOT_FOUND 或 PIPELINE_NOT_FOUND 或 STAGE_NOT_FOUND"},
+        500: {"description": "STAGE_EXECUTION_FAILED"},
+    },
+)
 async def approve_checkpoint(
     checkpoint_id: str,
     payload: CheckpointDecisionRequest,
@@ -47,7 +63,16 @@ async def approve_checkpoint(
         raise stage_error_to_http(exc) from exc
 
 
-@router.post("/checkpoints/{checkpoint_id}/reject", response_model=PipelineRecord)
+@router.post(
+    "/checkpoints/{checkpoint_id}/reject",
+    response_model=PipelineRecord,
+    summary="驳回 Checkpoint",
+    description="驳回指定的 checkpoint，需要提供驳回原因。驳回后对应 stage 状态变为 rejected。",
+    response_description="更新后的 Pipeline 记录。",
+    responses={
+        404: {"description": "CHECKPOINT_NOT_FOUND 或 PIPELINE_NOT_FOUND 或 STAGE_NOT_FOUND"},
+    },
+)
 def reject_checkpoint(
     checkpoint_id: str,
     payload: CheckpointDecisionRequest,

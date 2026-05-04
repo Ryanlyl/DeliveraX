@@ -3,6 +3,7 @@ import type {
   ApprovalRequest,
   PipelineCreateRequest,
   PipelineRecord,
+  PipelineRun,
   PipelineRunInput,
   StageRunInput,
 } from "../types/pipeline";
@@ -27,6 +28,38 @@ export function runPipeline(pipelineId: string, payload: PipelineRunInput = {}) 
     method: "POST",
     body: payload,
   });
+}
+
+export function startPipeline(pipelineId: string, payload: PipelineRunInput = {}) {
+  return apiRequest<PipelineRun>(`/api/pipelines/${encodeURIComponent(pipelineId)}/start`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function pausePipeline(pipelineId: string, runId?: string | null) {
+  const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiRequest<PipelineRun>(`/api/pipelines/${encodeURIComponent(pipelineId)}/pause${query}`, {
+    method: "POST",
+  });
+}
+
+export function resumePipeline(pipelineId: string, runId?: string | null) {
+  const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiRequest<PipelineRun>(`/api/pipelines/${encodeURIComponent(pipelineId)}/resume${query}`, {
+    method: "POST",
+  });
+}
+
+export function terminatePipeline(pipelineId: string, runId?: string | null) {
+  const query = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiRequest<PipelineRun>(`/api/pipelines/${encodeURIComponent(pipelineId)}/terminate${query}`, {
+    method: "POST",
+  });
+}
+
+export function getPipelineRun(pipelineId: string, runId: string) {
+  return apiRequest<PipelineRun>(`/api/pipelines/${encodeURIComponent(pipelineId)}/runs/${encodeURIComponent(runId)}`);
 }
 
 export function runStage(pipelineId: string, stageId: string, payload: StageRunInput = {}) {

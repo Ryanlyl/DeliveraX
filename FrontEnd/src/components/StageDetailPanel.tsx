@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { LLMProvider, Stage } from "../types/pipeline";
+import type { ProviderDefinition, Stage } from "../types/pipeline";
 import AgentLogs from "./AgentLogs";
 import CheckpointPanel from "./CheckpointPanel";
+import StageArtifactsPanel from "./StageArtifactsPanel";
 
 type Props = {
   stage: Stage;
-  model: LLMProvider;
+  model: string;
+  pipelineId: string;
   pipelineRequirement: string;
   viewingHistory?: boolean;
   onApprove: () => void;
@@ -925,7 +927,7 @@ function TechnicalDesignReview() {
   );
 }
 
-export default function StageDetailPanel({ stage, model, pipelineRequirement, viewingHistory = false, onApprove, onReject }: Props) {
+export default function StageDetailPanel({ stage, model, pipelineId, pipelineRequirement, viewingHistory = false, onApprove, onReject }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>("document");
   const stageInput = getStageInputText(stage, pipelineRequirement);
   const stageOutput = getStageOutputText(stage);
@@ -1018,6 +1020,9 @@ export default function StageDetailPanel({ stage, model, pipelineRequirement, vi
       )}
 
       <div className="content-box">
+        {stage.status !== "queued" && (
+          <StageArtifactsPanel pipelineId={pipelineId} stage={stage} />
+        )}
         {isCodeStage ? (
           <CodeGenerationResult stage={stage} />
         ) : isDesignStage ? (

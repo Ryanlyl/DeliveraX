@@ -224,3 +224,37 @@ class CurrentCheckpointResponse(BaseModel):
     stage: StageRecord | None = None
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     human_output: str | None = None
+
+
+class ApiErrorResponse(BaseModel):
+    code: str
+    message: str
+    detail: str | dict | None = None
+    request_id: str | None = None
+
+
+class ProviderPublicResponse(BaseModel):
+    id: str
+    name: str
+    kind: str
+    default_model: str | None = None
+    default_base_url: str | None = None
+    api_key_env: str | None = None
+    available: bool
+    configured: bool
+    notes: str | None = None
+    models: list[str] = Field(default_factory=list)
+
+
+class ReviewAssetItem(BaseModel):
+    path: str | None = None
+    content: str | None = None
+
+
+class ReviewAssetsResponse(BaseModel):
+    pipeline_id: str
+    stage_id: str
+    human_output: ReviewAssetItem | None = None
+    diff: ReviewAssetItem | None = None
+    review_report: ReviewAssetItem | None = None
+    artifacts: list[ArtifactRef] = Field(default_factory=list)

@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPipeline } from "../api/pipelines";
 import { exampleRequirement } from "../data/mockPipeline";
-import type { LLMProvider } from "../types/pipeline";
+import type { ProviderDefinition } from "../types/pipeline";
 
 type Props = {
-  selectedModel: LLMProvider;
-  onModelChange: (model: LLMProvider) => void;
+  providers: ProviderDefinition[];
+  selectedProvider: ProviderDefinition | null;
+  selectedModel: string;
+  onProviderChange: (providerId: string) => void;
+  onModelChange: (model: string) => void;
 };
-
-const modelOptions: LLMProvider[] = ["GPT-4", "Claude 3"];
 const placeholderPrompts = [
   "优化登录页面交互体验",
   "为任务列表增加筛选和排序功能",
@@ -18,7 +19,7 @@ const placeholderPrompts = [
 ];
 const flowStages = ["需求", "方案", "代码", "测试", "评审", "交付"];
 
-export default function RequirementInput({ selectedModel, onModelChange }: Props) {
+export default function RequirementInput({ providers, selectedProvider, selectedModel, onProviderChange, onModelChange }: Props) {
   const [value, setValue] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
@@ -62,7 +63,8 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
       const pipeline = await createPipeline({
         name: "AI DevFlow Pipeline",
         requirement,
-        provider: selectedModel,
+        provider: selectedProvider?.id ?? selectedModel,
+        model: selectedModel || selectedProvider?.default_model || undefined,
         repo_path: import.meta.env.VITE_DELIVERAX_REPO_PATH || undefined,
       });
       loadingTimerRef.current = window.setTimeout(() => {
@@ -80,22 +82,41 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
         <div className="section-heading">
           <h2>描述你希望 AI 推进的前端变更</h2>
         </div>
-        <div className="model-picker" aria-label="模型选择">
+        <div className="model-picker" aria-label="Provider 与模型选择">
           <label>
-            <span className="model-label">模型：</span>
+            <span className="model-label">Provider：</span>
             <select
-              value={selectedModel}
-              onChange={(event) => onModelChange(event.target.value as LLMProvider)}
-              aria-label="选择模型"
+              value={selectedProvider?.id ?? ""}
+              onChange={(event) => onProviderChange(event.target.value)}
+              aria-label="选择 Provider"
             >
-              {modelOptions.map((model) => (
-                <option key={model} value={model}>
-                  {model}
+              {providers.length === 0 && <option value="">加载中…</option>}
+              {providers.map((p) => (
+                <option key={p.id} value={p.id} disabled={!p.available}>
+                  {p.name}{!p.available ? " (不可用)" : ""}{p.configured ? "" : " (未配置)"}
                 </option>
               ))}
             </select>
           </label>
-          <small>支持 OpenAI / Anthropic</small>
+          <label>
+            <span className="model-label">模型：</span>
+            <select
+              value={selectedModel}
+              onChange={(event) => onModelChange(event.target.value)}
+              aria-label="选择模型"
+            >
+              {(selectedProvider?.models ?? []).map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+              {(!selectedProvider || selectedProvider.models.length === 0) && (
+                <option value="">无可用模型</option>
+              )}
+            </select>
+          </label>
+          {selectedProvider && !selectedProvider.configured && (
+            <small>⚠️ 未配置 API Key ({selectedProvider.api_key_env})</small>
+          )}
+          {selectedProvider?.notes && <small>{selectedProvider.notes}</small>}
         </div>
       </div>
       <div className="textarea-shell">

@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { approveStage, getPipeline, rejectStage, runPipeline } from "../api/pipelines";
+import {
+  approveStage,
+  getPipeline,
+  pausePipeline,
+  rejectStage,
+  resumePipeline,
+  startPipeline,
+  terminatePipeline,
+} from "../api/pipelines";
 import PipelineHeader from "../components/PipelineHeader";
 import PipelineTimeline from "../components/PipelineTimeline";
 import StageDetailPanel, { DESIGN_NAV_GROUPS } from "../components/StageDetailPanel";
@@ -38,7 +46,6 @@ export default function PipelineDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isActing, setIsActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const autoRunIdsRef = useRef<Set<string>>(new Set());
 
   const activeStageId = useMemo(() => currentStageId(pipeline?.stages ?? []), [pipeline]);
   const selectedStage = useMemo(
@@ -83,18 +90,10 @@ export default function PipelineDetail() {
   }, [pipelineId]);
 
   useEffect(() => {
-    if (!pipeline || pipeline.status !== "queued" || autoRunIdsRef.current.has(pipeline.id)) return;
+    if (!pipeline) return undefined;
 
-    autoRunIdsRef.current.add(pipeline.id);
-    setIsActing(true);
-    runPipeline(pipeline.id, {})
-      .then(setPipeline)
-      .catch((runError) => setError(runError instanceof Error ? runError.message : "Failed to run pipeline"))
-      .finally(() => setIsActing(false));
-  }, [pipeline]);
-
-  useEffect(() => {
-    if (!pipeline || pipeline.status !== "running") return undefined;
+    const pollingStatuses: string[] = ["queued", "running", "pending_approval"];
+    if (!pollingStatuses.includes(pipeline.status)) return undefined;
 
     const timer = window.setInterval(() => {
       refreshPipeline().catch((refreshError) => {
@@ -103,7 +102,8 @@ export default function PipelineDetail() {
     }, 1200);
 
     return () => window.clearInterval(timer);
-  }, [pipeline, refreshPipeline]);
+  }, [pipeline?.status, refreshPipeline]);
+
 
   useEffect(() => {
     if (!isViewingDesign) return;
@@ -126,6 +126,62 @@ export default function PipelineDetail() {
 
     return () => observer.disconnect();
   }, [isViewingDesign]);
+
+  const handleStart = async () => {
+    if (!pipeline || isActing) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await startPipeline(pipeline.id, {});
+      await refreshPipeline();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start pipeline");
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  const handlePause = async () => {
+    if (!pipeline || isActing) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await pausePipeline(pipeline.id, pipeline.latest_run_id);
+      await refreshPipeline();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to pause pipeline");
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  const handleResume = async () => {
+    if (!pipeline || isActing) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await resumePipeline(pipeline.id, pipeline.latest_run_id);
+      await refreshPipeline();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resume pipeline");
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  const handleTerminate = async () => {
+    if (!pipeline || isActing) return;
+    setIsActing(true);
+    setError(null);
+    try {
+      await terminatePipeline(pipeline.id, pipeline.latest_run_id);
+      await refreshPipeline();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to terminate pipeline");
+    } finally {
+      setIsActing(false);
+    }
+  };
 
   const selectStage = (stageId: string) => {
     const stage = pipeline?.stages.find((item) => item.id === stageId);
@@ -209,7 +265,39 @@ export default function PipelineDetail() {
 
   return (
     <main className="pipeline-page">
-      <PipelineHeader status={pipeline.status} totalDuration={totalDuration(pipeline)} model={pipeline.provider} />
+      <PipelineHeader status={pipeline.status} totalDuration={totalDuration(pipeline)} model={pipeline.model ?? pipeline.provider} />
+      <div className="pipeline-controls">
+        {pipeline.status === "queued" && (
+          <button className="button primary" type="button" onClick={handleStart} disabled={isActing}>
+            {isActing ? "启动中…" : "启动 Pipeline"}
+          </button>
+        )}
+        {pipeline.status === "running" && (
+          <>
+            <button className="button secondary" type="button" onClick={handlePause} disabled={isActing}>
+              暂停
+            </button>
+            <button className="button danger" type="button" onClick={handleTerminate} disabled={isActing}>
+              终止
+            </button>
+          </>
+        )}
+        {pipeline.status === "paused" && (
+          <>
+            <button className="button primary" type="button" onClick={handleResume} disabled={isActing}>
+              恢复
+            </button>
+            <button className="button danger" type="button" onClick={handleTerminate} disabled={isActing}>
+              终止
+            </button>
+          </>
+        )}
+        {pipeline.status === "pending_approval" && (
+          <button className="button danger" type="button" onClick={handleTerminate} disabled={isActing}>
+            终止
+          </button>
+        )}
+      </div>
       {error && (
         <div className="floating-log-strip" aria-live="polite">
           <span>{error}</span>
@@ -249,7 +337,8 @@ export default function PipelineDetail() {
         </aside>
         <StageDetailPanel
           stage={selectedStage}
-          model={pipeline.provider}
+          model={pipeline.model ?? pipeline.provider}
+          pipelineId={pipeline.id}
           pipelineRequirement={pipeline.requirement}
           viewingHistory={selectedStage.id !== activeStageId}
           onApprove={approveCheckpoint}
@@ -257,7 +346,7 @@ export default function PipelineDetail() {
         />
       </div>
       <div className="floating-log-strip" aria-hidden="true">
-        {createBaseLogs(pipeline.provider).map((log) => (
+        {createBaseLogs(pipeline.model ?? pipeline.provider).map((log) => (
           <span key={log}>{log}</span>
         ))}
       </div>

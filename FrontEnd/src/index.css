@@ -3423,3 +3423,175 @@ textarea.section-control {
     flex-direction: column;
   }
 }
+
+/* Phase 5: Pipeline controls, list, and artifact display */
+
+.pipeline-controls {
+  display: flex;
+  gap: 12px;
+  width: min(1280px, calc(100% - 64px));
+  margin: 16px auto;
+  justify-content: flex-end;
+}
+
+/* Pipeline list page */
+.pipeline-list-grid {
+  width: min(1280px, calc(100% - 64px));
+  margin: 20px auto;
+  display: grid;
+  gap: 14px;
+}
+
+.pipeline-list-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-card);
+}
+
+.pipeline-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pipeline-list-header strong {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.pipeline-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.pipeline-list-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+}
+
+/* Status pill missing states */
+.status-pill.paused {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.status-pill.terminated {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.12);
+}
+
+.status-pill.cancelled {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.12);
+}
+
+/* Artifact display components */
+.stage-artifacts-panel {
+  padding: 16px;
+}
+
+.artifact-markdown-viewer,
+.review-report-viewer {
+  margin-bottom: 16px;
+}
+
+.artifact-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(219, 234, 254, 0.3);
+}
+
+.artifact-section-header strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.artifact-path {
+  color: var(--text-subtle);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+.artifact-markdown-content {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--text-secondary);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.artifact-loading {
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.artifact-loading.error {
+  color: #dc2626;
+}
+
+.artifact-list-fallback {
+  padding: 16px;
+}
+
+.artifact-list-fallback strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.artifact-list-fallback ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.artifact-list-fallback li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.artifact-list-fallback code {
+  color: var(--brand-blue);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}

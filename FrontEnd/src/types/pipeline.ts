@@ -11,11 +11,13 @@ export type StageStatus =
 export type PipelineStatus =
   | "queued"
   | "running"
+  | "paused"
   | "pending_approval"
   | "succeeded"
   | "failed"
   | "rejected"
-  | "cancelled";
+  | "cancelled"
+  | "terminated";
 
 export type ArtifactRef = {
   name: string;
@@ -65,11 +67,15 @@ export type PipelineRecord = {
   name: string;
   status: PipelineStatus;
   provider: string;
+  model?: string | null;
+  temperature?: number | null;
   requirement: string;
   repo_path?: string | null;
   created_at: string;
   updated_at: string;
   options: Record<string, unknown>;
+  latest_run_id?: string | null;
+  stage_overrides?: Record<string, unknown>;
   stages: StageRecord[];
 };
 
@@ -78,7 +84,10 @@ export type PipelineCreateRequest = {
   requirement: string;
   pipeline_id?: string | null;
   provider?: string;
+  model?: string | null;
+  temperature?: number | null;
   repo_path?: string | null;
+  stage_overrides?: Record<string, unknown>;
   options?: Record<string, unknown>;
 };
 
@@ -115,4 +124,49 @@ export type ArtifactTextResponse = {
 
 export type Stage = StageRecord;
 export type Pipeline = PipelineRecord;
-export type LLMProvider = string;
+
+export type ProviderDefinition = {
+  id: string;
+  name: string;
+  kind: string;
+  default_model?: string | null;
+  default_base_url?: string | null;
+  api_key_env?: string | null;
+  available: boolean;
+  configured: boolean;
+  notes?: string | null;
+  models: string[];
+};
+
+export type PipelineRun = {
+  id: string;
+  pipeline_id: string;
+  status: string;
+  stage_order: string[];
+  current_stage_id?: string | null;
+  next_stage_id?: string | null;
+  completed_stage_ids: string[];
+  failed_stage_id?: string | null;
+  rejected_stage_id?: string | null;
+  pause_requested: boolean;
+  terminate_requested: boolean;
+  logs: string[];
+  created_at: string;
+  updated_at: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+};
+
+export type ReviewAssetItem = {
+  path?: string | null;
+  content?: string | null;
+};
+
+export type ReviewAssetsResponse = {
+  pipeline_id: string;
+  stage_id: string;
+  human_output?: ReviewAssetItem | null;
+  diff?: ReviewAssetItem | null;
+  review_report?: ReviewAssetItem | null;
+  artifacts: ArtifactRef[];
+};

@@ -1,19 +1,21 @@
-import type { LLMProvider, PipelineStatus } from "../types/pipeline";
+import type { PipelineStatus } from "../types/pipeline";
 
 type Props = {
   status: PipelineStatus;
   totalDuration: string;
-  model: LLMProvider;
+  model: string;
 };
 
 const statusLabel: Record<PipelineStatus, string> = {
   queued: "Queued",
   running: "Running",
+  paused: "Paused",
   pending_approval: "Waiting for Review",
   succeeded: "Completed",
   failed: "Failed",
   rejected: "Rejected",
   cancelled: "Cancelled",
+  terminated: "Terminated",
 };
 
 export default function PipelineHeader({ status, totalDuration, model }: Props) {
@@ -24,14 +26,9 @@ export default function PipelineHeader({ status, totalDuration, model }: Props) 
         <h1>AI DevFlow Pipeline</h1>
       </div>
       <div className="pipeline-meta">
-        <span className={`status-pill ${status}`}>{statusLabel[status]}</span>
-        <span>LLM Provider: {model}</span>
+        <span className={`status-pill ${status}`}>{statusLabel[status] ?? status}</span>
+        <span>LLM: {model}</span>
         <span>总耗时: {totalDuration}</span>
-      </div>
-      <div className="pipeline-actions">
-        <button className="button ghost" type="button">Pause</button>
-        <button className="button ghost" type="button">Resume</button>
-        <button className="button danger" type="button">Terminate</button>
       </div>
     </header>
   );
