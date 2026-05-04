@@ -1,0 +1,65 @@
+# Code review report
+## Summary
+
+代码存在两个阻塞性问题：Shift+点击范围逻辑错误导致锚点复选框状态未更新，以及错误提示功能在测试中未生效。此外，代码存在可读性、硬编码字符串等次要问题，且缺少首次Shift+点击和错误反馈的测试用例。建议修改后重新运行测试。
+
+## Risk note
+
+Tests did not pass. Treat implementation + tests as questionable until rerun green. Upstream summary: Tests failed (exit 1). See log.
+
+## Gate fields
+
+- `status` (delivery integration): **None**
+- `merge_recommendation` (agent): **changes_requested**
+
+## Issues
+
+1. **[blocker] correctness** — `index-START.html`
+
+   Evidence: if (e.shiftKey && lastChecked) { ... checkbox.checked = this.checked; }
+
+   Suggestion: The condition `if (e.shiftKey && lastChecked)` does not handle the case where `lastChecked` is null (first click with Shift). According to the requirement, if no anchor exists, only the clicked row should be affected. The current code will skip the batch operation entirely when `lastChecked` is null, which is correct, but the test failure indicates that the anchor update logic is incorrect for consecutive Shift operations. The issue is that `lastChecked` is updated inside the `try` block after the batch loop, but the test expects that after a second Shift+click, the range from the previous anchor to the new click is toggled. The current implementation sets `checkbox.checked = this.checked` for all checkboxes in the range, but the test expects that the range is toggled to the state of the clicked checkbox. The test failure shows that checkbox 2 remains checked when it should be unchecked. This suggests that the logic for determining the range or the state assignment is incorrect. The fix should ensure that when Shift+clicking, the range between `lastChecked` and `this` is set to `this.checked`, and `lastChecked` is updated to `this` after the operation. The current code does this, but the test failure indicates that the range calculation might be off by one or the state is not being applied correctly. Review the range logic: the `inBetween` flag toggles when encountering `this` or `lastChecked`, but it should start as false and toggle on the first boundary, then toggle again on the second boundary. The current implementation toggles on both boundaries, which means the range includes both endpoints. The test expects that the range includes the clicked checkbox and the anchor, but the state of the anchor should also be changed. The test failure shows that checkbox 2 (which is the anchor from the first operation) remains checked when it should be unchecked. This indicates that the anchor's state is not being updated correctly. The fix should ensure that the anchor checkbox's state is also updated to `this.checked` when it is part of the range. The current code toggles `inBetween` when encountering `this` or `lastChecked`, but it does not set the checkbox state for the anchor itself because the `if (inBetween)` check happens after the toggle. To include both endpoints, the code should set the checkbox state before toggling `inBetween` for the first boundary, or use a different approach. A simpler fix: iterate over the checkboxes and set `checkbox.checked = this.checked` for all checkboxes between `lastChecked` and `this` inclusive. This can be done by finding the indices and using a for loop.
+
+2. **[blocker] correctness** — `index-START.html`
+
+   Evidence: showError('操作失败，请重试。');
+
+   Suggestion: The test E2E-005 expects that when an error occurs (e.g., by removing a checkbox element), the error message becomes visible. However, the test fails because the error message remains hidden. This is because the `showError` function sets `errorMessage.style.display = 'block'`, but the test expects the element to be visible. The issue might be that the error message element is initially hidden with `display: none` in CSS, but the `showError` function sets `display: block` directly. However, the test locator resolves to the element but it is hidden. This could be because the `showError` function is not being called when the test triggers an error. The test likely removes a checkbox element to cause an error, but the `handleCheck` function's `try...catch` catches the error and calls `showError`. However, the test might be clicking on a checkbox that has been removed, which would cause an error, but the `showError` function might not be called because the event listener is on the checkbox, and if the checkbox is removed, the event might not fire. The test should ensure that the error is triggered in a way that the event listener is still attached. Alternatively, the `showError` function might have a bug: it sets `display: block` but the CSS has `display: none` with higher specificity? The inline style should override. Check if the error message element is correctly referenced. The code uses `const errorMessage = document.getElementById('error-message');` which should work. The test failure indicates that the error message is not becoming visible. Possible causes: 1) The error is not being thrown because the test's method of causing an error (e.g., removing a checkbox) does not trigger the event listener. 2) The `showError` function is called but the element's display is not set to block due to a typo or CSS conflict. 3) The test waits for visibility but the element is still hidden because the `setTimeout` hides it after 3 seconds, but the test might be checking after the timeout? The test waits for the error message to be visible immediately after the click, so the timeout should not have fired yet. The fix should ensure that the error message becomes visible when an error occurs. Consider using `errorMessage.style.display = 'block'` and also removing any other CSS that might hide it. Also, ensure that the error is actually thrown in the test scenario.
+
+3. **[major] convention** — `index-START.html`
+
+   Evidence: if (e.shiftKey && lastChecked) { ... }
+
+   Suggestion: The condition `if (e.shiftKey && lastChecked)` does not handle the case where the user Shift+clicks without a previous anchor (first click with Shift). According to the requirement, if no anchor exists, only the clicked row should be affected. The current code will skip the batch operation entirely, which is correct, but the condition should be more explicit to improve readability. Consider adding a comment or restructuring the logic to make the intent clear. Also, the condition `if (e.shiftKey && lastChecked)` should be `if (e.shiftKey && lastChecked)` but the original code had `if (e.shiftKey && this.checked && lastChecked)`. The removal of `this.checked` is correct per the design, but the condition should also handle the case where `lastChecked` is null. The current code does that, but it's not obvious. Suggest adding a comment: `// If no anchor, only toggle the clicked checkbox (handled by default behavior)`.
+
+4. **[minor] requirements_alignment** — `index-START.html`
+
+   Evidence: if (e.shiftKey && lastChecked) { ... checkbox.checked = this.checked; }
+
+   Suggestion: The requirement states that when Shift+clicking, the range between the anchor and the clicked row should be set to the same state as the clicked row. The current implementation sets `checkbox.checked = this.checked` for all checkboxes in the range, which is correct. However, the test failure indicates that the range is not being set correctly for consecutive operations. The issue might be that the anchor is not being updated correctly. The code updates `lastChecked = this` after the batch operation, but the test expects that the anchor is updated to the clicked checkbox. The test failure shows that checkbox 2 (which was the anchor from the first operation) remains checked when it should be unchecked. This suggests that the range calculation is incorrect. The `inBetween` logic toggles on encountering `this` or `lastChecked`, but it does not include the anchor itself in the range if the anchor is before the clicked checkbox. The fix should ensure that the range includes both endpoints. A more robust approach is to find the indices of `lastChecked` and `this` and iterate between them inclusive.
+
+5. **[minor] convention** — `index-START.html`
+
+   Evidence: showError('操作失败，请重试。');
+
+   Suggestion: The error message is hardcoded in both the HTML and the JavaScript function. This duplicates the string. Consider defining a constant for the error message to avoid duplication and make it easier to maintain. For example: `const DEFAULT_ERROR_MSG = '操作失败，请重试。';` and use it in both places.
+
+6. **[nit] convention** — `index-START.html`
+
+   Evidence: setTimeout(() => { errorMessage.style.display = 'none'; }, 3000);
+
+   Suggestion: The timeout of 3000ms is hardcoded. Consider defining a constant for the duration to improve readability and maintainability. For example: `const ERROR_DISPLAY_DURATION = 3000;`.
+
+## Test gaps
+
+- No test for the case where Shift+click is performed without a previous anchor (first click with Shift). The requirement states that only the clicked row should be affected, but there is no test to verify this behavior.
+
+  `(suggested: Add a test that checks that when no anchor exists (lastChecked is null), a Shift+click only toggles the clicked checkbox and does not affect any other checkboxes.)`
+
+- No test for the error message visibility when an error occurs. The existing test E2E-005 fails, indicating that the error feedback mechanism is not working as expected. A test should be added to verify that the error message becomes visible when an error is thrown and that it auto-hides after the specified duration.
+
+  `(suggested: Add a test that simulates an error (e.g., by removing a checkbox element and then clicking on it) and verifies that the error message becomes visible and then disappears after 3 seconds.)`
+
+## Warnings
+
+- diff_chunks_scheduled:1 (chunk_lines≤350)
