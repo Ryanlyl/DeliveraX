@@ -74,7 +74,7 @@
       "id": "review",
       "name": "代码评审",
       "agent_ids": ["review_gate"],
-      "module": null,
+      "module": "ReviewGate.review_gate.stage",
       "depends_on": ["test"],
       "checkpoint": true,
       "checkpoint_label": "代码评审确认",

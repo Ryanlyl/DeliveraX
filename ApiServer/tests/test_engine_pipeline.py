@@ -29,7 +29,7 @@ def test_default_pipeline_loads_six_stages() -> None:
     ]
     assert len(definition.agents) == 6
     assert definition.stage_by_id("requirements").checkpoint is True
-    assert definition.stage_by_id("review").module is None
+    assert definition.stage_by_id("review").module == "ReviewGate.review_gate.stage"
 
 
 def test_default_pipeline_topological_order_is_current_chain() -> None:
@@ -94,7 +94,7 @@ def test_stage_registry_projects_default_pipeline_definition() -> None:
         "review",
         "integration",
     ]
-    assert registry.get("review").available is False
+    assert registry.get("review").available is True
 
 
 def _pipeline_payload(stages: list[dict]) -> dict:
