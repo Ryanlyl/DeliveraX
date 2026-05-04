@@ -6,32 +6,68 @@
     {
       "id": "req_analysis",
       "name": "ReqAnalysis",
-      "role": "requirements analyst"
+      "role": "requirements analyst",
+      "system_prompt": "You are ReqAnalysis.",
+      "accepted_input_artifact_types": ["text", "markdown"],
+      "output_artifact_contract": {"artifacts": ["requirement_spec", "requirement_prd"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     },
     {
       "id": "sol_design",
       "name": "SolDesign",
-      "role": "solution architect"
+      "role": "solution architect",
+      "system_prompt": "You are SolDesign.",
+      "accepted_input_artifact_types": ["json", "markdown"],
+      "output_artifact_contract": {"artifacts": ["technical_design"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     },
     {
       "id": "code_gen",
       "name": "CodeGen",
-      "role": "code generator"
+      "role": "code generator",
+      "system_prompt": "You are CodeGen.",
+      "accepted_input_artifact_types": ["json", "markdown"],
+      "output_artifact_contract": {"artifacts": ["code_changeset"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     },
     {
       "id": "code_test",
       "name": "CodeTest",
-      "role": "test engineer"
+      "role": "test engineer",
+      "system_prompt": "You are CodeTest.",
+      "accepted_input_artifact_types": ["json", "markdown"],
+      "output_artifact_contract": {"artifacts": ["test_report"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     },
     {
       "id": "review_gate",
       "name": "ReviewGate",
-      "role": "code reviewer"
+      "role": "code reviewer",
+      "system_prompt": "You are ReviewGate.",
+      "accepted_input_artifact_types": ["json", "markdown"],
+      "output_artifact_contract": {"artifacts": ["review_report"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     },
     {
       "id": "integration",
       "name": "Integration",
-      "role": "release integrator"
+      "role": "release integrator",
+      "system_prompt": "You are Integration.",
+      "accepted_input_artifact_types": ["json", "markdown"],
+      "output_artifact_contract": {"artifacts": ["delivery_summary"]},
+      "context_paths": [],
+      "default_provider": null,
+      "default_model": null
     }
   ],
   "stages": [

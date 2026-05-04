@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AuthenticationError, OpenAI
+from stage_contracts.llm_runtime import get_current_llm_config
 
 try:
     from dotenv import load_dotenv
@@ -22,6 +23,27 @@ class LLMConfig:
 
 
 def load_llm_config() -> LLMConfig:
+    runtime = get_current_llm_config()
+    if runtime is not None:
+        api_key = (
+            os.getenv(runtime.api_key_env)
+            if runtime.api_key_env and runtime.use_real_llm and not runtime.local_only
+            else None
+        )
+        base_url = runtime.base_url
+        model = runtime.model or os.getenv("DELIVERY_INTEGRATION_LLM_MODEL") or os.getenv("LLM_MODEL")
+        temperature = float(runtime.temperature) if runtime.temperature is not None else 0.1
+        timeout_seconds = float(runtime.timeout_seconds) if runtime.timeout_seconds is not None else 180.0
+        max_retries = int(runtime.max_retries) if runtime.max_retries is not None else 0
+        return LLMConfig(
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+        )
+
     if load_dotenv:
         load_dotenv()
 
@@ -149,4 +171,3 @@ def _int_env(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
-

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api_server.config import get_settings
-from api_server.routers import artifacts, health, pipelines, stages
+from api_server.routers import artifacts, health, pipelines, providers, stages
 from api_server.engine.run_store import JsonPipelineRunStore
 from api_server.engine.runner import PipelineRunner
 from api_server.services.approval_service import ApprovalService
@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(stages.router, prefix=settings.api_prefix)
     app.include_router(pipelines.router, prefix=settings.api_prefix)
+    app.include_router(providers.router, prefix=settings.api_prefix)
     app.include_router(artifacts.router, prefix=settings.api_prefix)
     return app
 

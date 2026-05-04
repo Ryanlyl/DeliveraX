@@ -22,9 +22,13 @@ class AgentDefinition(BaseModel):
     name: str
     role: str | None = None
     system_prompt: str | None = None
+    accepted_input_artifact_types: list[str] = Field(default_factory=list)
+    output_artifact_contract: dict[str, Any] = Field(default_factory=dict)
     input_contract: dict[str, Any] = Field(default_factory=dict)
     output_contract: dict[str, Any] = Field(default_factory=dict)
     context_paths: list[str] = Field(default_factory=list)
+    default_provider: str | None = None
+    default_model: str | None = None
     provider: str | None = None
     model: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)

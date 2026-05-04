@@ -36,7 +36,10 @@ class JsonPipelineStore:
         payload = json.dumps(pipeline.model_dump(mode="json"), ensure_ascii=False, indent=2) + "\n"
         with self._lock:
             self.pipeline_dir.mkdir(parents=True, exist_ok=True)
-            self._path_for(pipeline.id).write_text(payload, encoding="utf-8")
+            path = self._path_for(pipeline.id)
+            tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+            tmp_path.write_text(payload, encoding="utf-8")
+            tmp_path.replace(path)
         return pipeline
 
     def _path_for(self, pipeline_id: str) -> Path:
@@ -44,4 +47,5 @@ class JsonPipelineStore:
         return self.pipeline_dir / f"{safe_id}.json"
 
     def _read_path(self, path: Path) -> PipelineRecord:
-        return PipelineRecord.model_validate_json(path.read_text(encoding="utf-8"))
+        with self._lock:
+            return PipelineRecord.model_validate_json(path.read_text(encoding="utf-8"))

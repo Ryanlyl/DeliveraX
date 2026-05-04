@@ -28,22 +28,26 @@ class JsonPipelineRunStore:
         with self._lock:
             path = self._path_for(run.pipeline_id, run.id)
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(payload, encoding="utf-8")
+            tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+            tmp_path.write_text(payload, encoding="utf-8")
+            tmp_path.replace(path)
         return run
 
     def get(self, pipeline_id: str, run_id: str) -> PipelineRun:
         path = self._path_for(pipeline_id, run_id)
         if not path.exists():
             raise PipelineRunNotFoundError(f"{pipeline_id}:{run_id}")
-        return PipelineRun.model_validate_json(path.read_text(encoding="utf-8"))
+        with self._lock:
+            return PipelineRun.model_validate_json(path.read_text(encoding="utf-8"))
 
     def list(self, pipeline_id: str) -> list[PipelineRun]:
         base = self.runs_dir / self._safe(pipeline_id)
         if not base.exists():
             return []
         runs: list[PipelineRun] = []
-        for path in sorted(base.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-            runs.append(PipelineRun.model_validate_json(path.read_text(encoding="utf-8")))
+        with self._lock:
+            for path in sorted(base.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+                runs.append(PipelineRun.model_validate_json(path.read_text(encoding="utf-8")))
         return runs
 
     def latest(self, pipeline_id: str) -> PipelineRun | None:

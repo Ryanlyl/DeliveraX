@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 
 from openai import OpenAI
+from stage_contracts.llm_runtime import get_current_llm_config
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,20 @@ class LLMConfig:
 
 
 def load_llm_config() -> LLMConfig:
+    runtime = get_current_llm_config()
+    if runtime is not None:
+        api_key = (
+            os.getenv(runtime.api_key_env)
+            if runtime.api_key_env and runtime.use_real_llm and not runtime.local_only
+            else None
+        )
+        base_url = runtime.base_url
+        model = runtime.model or os.getenv("SOLUTION_DESIGN_MODEL") or os.getenv("LLM_MODEL")
+        if not model:
+            model = "deepseek-chat" if os.getenv("DEEPSEEK_API_KEY") else "gpt-4o-mini"
+        temperature = float(runtime.temperature) if runtime.temperature is not None else 0.2
+        return LLMConfig(api_key=api_key, model=model, base_url=base_url, temperature=temperature)
+
     api_key = (
         os.getenv("SOLUTION_DESIGN_API_KEY")
         or os.getenv("DEEPSEEK_API_KEY")
@@ -60,5 +75,4 @@ class ChatLLM:
         )
         content = response.choices[0].message.content
         return content or ""
-
 

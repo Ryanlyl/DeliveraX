@@ -2,16 +2,32 @@ import os
 
 import httpx
 
+from stage_contracts.llm_runtime import get_current_llm_config
+
 from .base import LlmProvider
 
 
 async def deepseek_llm_call(prompt: str) -> str:
-    api_key = os.getenv("DEEPSEEK_API_KEY")
+    runtime = get_current_llm_config()
+    if runtime is not None and (runtime.local_only or not runtime.use_real_llm):
+        raise RuntimeError("LLM runtime is configured for local-only execution")
+    api_key_env = runtime.api_key_env if runtime is not None and runtime.api_key_env else "DEEPSEEK_API_KEY"
+    api_key = os.getenv(api_key_env)
     if not api_key:
-        raise RuntimeError("DEEPSEEK_API_KEY is not configured")
+        raise RuntimeError(f"{api_key_env} is not configured")
+
+    model = None
+    if runtime is not None:
+        model = runtime.model
+    if not model:
+        model = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+
+    temperature = 0.2
+    if runtime is not None and runtime.temperature is not None:
+        temperature = float(runtime.temperature)
 
     payload = {
-        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+        "model": model,
         "messages": [
             {
                 "role": "system",
@@ -22,14 +38,22 @@ async def deepseek_llm_call(prompt: str) -> str:
             },
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.2,
+        "temperature": temperature,
         "stream": False,
     }
 
+    base_url = None
+    if runtime is not None and runtime.base_url:
+        base_url = runtime.base_url.rstrip("/")
+    if not base_url:
+        base_url = "https://api.deepseek.com"
+
     timeout = float(os.getenv("DEEPSEEK_TIMEOUT_SECONDS", "60"))
+    if runtime is not None and runtime.timeout_seconds is not None:
+        timeout = float(runtime.timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(
-            "https://api.deepseek.com/chat/completions",
+            f"{base_url}/chat/completions" if not base_url.endswith("/v1") else f"{base_url}/chat/completions",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
@@ -39,7 +63,7 @@ async def deepseek_llm_call(prompt: str) -> str:
 
     if response.status_code >= 400:
         raise RuntimeError(
-            "DeepSeek API request failed with status "
+            "LLM provider request failed with status "
             f"{response.status_code}: {response.text}"
         )
 

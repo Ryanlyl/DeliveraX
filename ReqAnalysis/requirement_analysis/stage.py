@@ -10,6 +10,7 @@ from stage_contracts import (
     ArtifactRef,
     StageRunRequest,
     StageRunResult,
+    get_current_llm_config,
     resolve_stage_artifact_dir,
     write_stage_artifacts,
 )
@@ -100,10 +101,14 @@ async def run_stage(request: StageRunRequest) -> StageRunResult:
     logs = ["ReqAnalysis stage started"]
     try:
         user_input = _resolve_user_input(request)
-        use_real_llm = bool(
-            request.options.get("use_real_llm")
-            or os.getenv("USE_REAL_LLM", "false").lower() == "true"
-        )
+        runtime = get_current_llm_config()
+        if runtime is not None:
+            use_real_llm = bool(runtime.use_real_llm and not runtime.local_only)
+        else:
+            use_real_llm = bool(
+                request.options.get("use_real_llm")
+                or os.getenv("USE_REAL_LLM", "false").lower() == "true"
+            )
         llm_call = deepseek_llm_call if use_real_llm else _mock_llm_call
         logs.append("Using real LLM" if use_real_llm else "Using deterministic local mock")
 

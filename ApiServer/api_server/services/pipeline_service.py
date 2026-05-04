@@ -17,7 +17,9 @@ from api_server.schemas import (
     PipelineStatus,
     StageRecord,
     StageRunInput,
+    sanitize_options,
 )
+from api_server.providers.resolver import resolve_llm_config
 from api_server.services.stage_executor import StageExecutor
 from api_server.stage_registry import StageDefinition as RegistryStageDefinition
 from api_server.stage_registry import StageRegistry
@@ -46,6 +48,9 @@ class PipelineService:
             id=pipeline_id,
             name=request.name,
             provider=request.provider,
+            model=request.model,
+            temperature=request.temperature,
+            stage_overrides=request.stage_overrides,
             requirement=request.requirement,
             repo_path=request.repo_path,
             options=request.options,
@@ -180,9 +185,27 @@ class PipelineService:
         )
 
     def _stage_options(self, pipeline: PipelineRecord, stage_id: str, options: dict) -> dict:
-        merged = {**self._stage_definition_options(stage_id), **pipeline.options, **options}
+        merged = sanitize_options({**self._stage_definition_options(stage_id), **pipeline.options, **options})
         if stage_id == "requirements":
             merged.setdefault("user_input", pipeline.requirement)
+
+        pipeline_definition = self._pipeline_definition()
+        try:
+            engine_stage = pipeline_definition.stage_by_id(stage_id)
+            llm_config, agent_payload = resolve_llm_config(
+                pipeline=pipeline,
+                pipeline_definition=pipeline_definition,
+                stage_definition=engine_stage,
+                run_options=merged,
+            )
+            merged["llm"] = llm_config.to_safe_dict()
+            merged.setdefault("use_real_llm", llm_config.use_real_llm)
+            merged.setdefault("local_only", llm_config.local_only)
+            merged["agents"] = agent_payload.get("agents", [])
+            agents = merged["agents"]
+            merged["agent"] = agents[0] if agents else None
+        except Exception:
+            pass
         return merged
 
     def _get_stage_record(self, pipeline: PipelineRecord, stage_id: str) -> StageRecord:

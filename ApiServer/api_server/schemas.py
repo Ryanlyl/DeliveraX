@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from api_server.bootstrap import ensure_repo_paths
 
@@ -27,6 +27,43 @@ PipelineStatus = Literal[
 ]
 
 
+_SENSITIVE_OPTION_KEYS = {
+    "api_key",
+    "apikey",
+    "authorization",
+    "password",
+    "secret",
+    "token",
+    "access_token",
+    "refresh_token",
+}
+
+
+def _is_sensitive_option_key(key: str) -> bool:
+    normalized = key.lower().replace("-", "_")
+    if normalized == "api_key_env":
+        return False
+    return (
+        normalized in _SENSITIVE_OPTION_KEYS
+        or normalized.endswith("_api_key")
+        or normalized.endswith("_secret")
+        or normalized.endswith("_token")
+    )
+
+
+def sanitize_options(value: Any) -> Any:
+    if isinstance(value, dict):
+        clean: dict[str, Any] = {}
+        for key, item in value.items():
+            if isinstance(key, str) and _is_sensitive_option_key(key):
+                continue
+            clean[key] = sanitize_options(item)
+        return clean
+    if isinstance(value, list):
+        return [sanitize_options(item) for item in value]
+    return value
+
+
 class StageDefinitionResponse(BaseModel):
     id: str
     name: str
@@ -36,13 +73,35 @@ class StageDefinitionResponse(BaseModel):
     available: bool = True
 
 
+class LLMSelection(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+    temperature: float | None = None
+    local_only: bool | None = None
+    use_real_llm: bool | None = None
+    options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _sanitize_llm_options(cls, value: Any) -> Any:
+        return sanitize_options(value or {})
+
+
 class PipelineCreateRequest(BaseModel):
     name: str = "AI DevFlow Pipeline"
     requirement: str
     pipeline_id: str | None = None
     provider: str = "local"
+    model: str | None = None
+    temperature: float | None = None
+    stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
     repo_path: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _sanitize_create_options(cls, value: Any) -> Any:
+        return sanitize_options(value or {})
 
 
 class StageRunInput(BaseModel):
@@ -51,11 +110,21 @@ class StageRunInput(BaseModel):
     repo_path: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("options", mode="before")
+    @classmethod
+    def _sanitize_stage_run_options(cls, value: Any) -> Any:
+        return sanitize_options(value or {})
+
 
 class PipelineRunInput(BaseModel):
     start_stage_id: str | None = None
     repo_path: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _sanitize_pipeline_run_options(cls, value: Any) -> Any:
+        return sanitize_options(value or {})
 
 
 class ApprovalRequest(BaseModel):
@@ -111,6 +180,9 @@ class PipelineRecord(BaseModel):
     name: str
     status: PipelineStatus = "queued"
     provider: str = "local"
+    model: str | None = None
+    temperature: float | None = None
+    stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
     requirement: str
     repo_path: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -118,6 +190,11 @@ class PipelineRecord(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
     latest_run_id: str | None = None
     stages: list[StageRecord] = Field(default_factory=list)
+
+    @field_validator("options", mode="before")
+    @classmethod
+    def _sanitize_record_options(cls, value: Any) -> Any:
+        return sanitize_options(value or {})
 
 
 class ArtifactListResponse(BaseModel):
