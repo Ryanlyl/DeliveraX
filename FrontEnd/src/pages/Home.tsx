@@ -1,41 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import AppNav from "../components/AppNav";
 import RequirementInput from "../components/RequirementInput";
-import { listProviders } from "../api/providers";
-import type { ProviderDefinition } from "../types/pipeline";
+import type { LLMProvider } from "../types/pipeline";
 
 export default function Home() {
-  const [providers, setProviders] = useState<ProviderDefinition[]>([]);
-  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
-  const [selectedModel, setSelectedModel] = useState<string>("");
-
-  const selectedProvider = providers.find((p) => p.id === selectedProviderId) ?? null;
-
-  useEffect(() => {
-    let cancelled = false;
-    listProviders()
-      .then((list) => {
-        if (cancelled) return;
-        setProviders(list);
-        const def = list.find((p) => p.available && p.configured) ?? list.find((p) => p.available) ?? list[0];
-        if (def) {
-          setSelectedProviderId(def.id);
-          setSelectedModel(def.default_model ?? def.models[0] ?? "");
-        }
-      })
-      .catch(() => {
-        // keep defaults
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  const handleProviderChange = useCallback((providerId: string) => {
-    setSelectedProviderId(providerId);
-    const provider = providers.find((p) => p.id === providerId);
-    if (provider) {
-      setSelectedModel(provider.default_model ?? provider.models[0] ?? "");
-    }
-  }, [providers]);
+  const [selectedModel, setSelectedModel] = useState<LLMProvider>("GPT-4");
 
   return (
     <main className="home-page">
@@ -47,23 +16,23 @@ export default function Home() {
 
       <section className="hero">
         <div className="hero-copy">
+          <span className="eyebrow">AI DevFlow Workbench</span>
           <h1>
             从需求到代码的
-            <span>自动化交付</span>
+            <span>自动化研发工作台</span>
           </h1>
           <p className="hero-description">
-            输入一个需求，AI 自动完成分析、设计、编码、测试与评审，并交付可运行代码。
+            输入一个前端变更需求，系统会拆解 PRD、方案、代码、测试和评审节点，并在关键检查点交给你确认。
           </p>
+          <div className="hero-metrics" aria-label="DevFlow 摘要">
+            <span><strong>6</strong> 个自动化节点</span>
+            <span><strong>2</strong> 个人工检查点</span>
+            <span><strong>18s</strong> 演示交付链路</span>
+          </div>
         </div>
       </section>
 
-      <RequirementInput
-        providers={providers}
-        selectedProvider={selectedProvider}
-        selectedModel={selectedModel}
-        onProviderChange={handleProviderChange}
-        onModelChange={setSelectedModel}
-      />
+      <RequirementInput selectedModel={selectedModel} onModelChange={setSelectedModel} />
     </main>
   );
 }

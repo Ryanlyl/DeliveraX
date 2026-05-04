@@ -1,6 +1,8 @@
+import type { LLMProvider } from "../types/pipeline";
+
 type Props = {
   logs: string[];
-  model: string;
+  model: LLMProvider;
 };
 
 export default function AgentLogs({ logs, model }: Props) {

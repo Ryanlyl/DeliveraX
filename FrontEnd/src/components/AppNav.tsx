@@ -12,8 +12,8 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
 
   return (
     <nav className="landing-nav">
-      <button className="landing-brand" type="button" onClick={goLanding} aria-label="Enter DeliveraX">
-        <span className="landing-brand-symbol" aria-hidden="true" />
+      <button className="landing-brand" type="button" onClick={goLanding} aria-label="进入 DeliveraX">
+        <span className="landing-brand-symbol" aria-hidden="true">D</span>
         <span className="landing-brand-copy">
           <strong>DeliveraX</strong>
           <small>DevFlow Engine</small>
@@ -21,7 +21,7 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
       </button>
       <div className="landing-nav-center" aria-label="Primary navigation">
         <Link className={active === "home" ? "active" : ""} to="/">
-          首页
+          工作台
         </Link>
         <Link to="/#features" onClick={onFeaturesClick}>
           产品能力
@@ -30,10 +30,10 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
       </div>
       <div className="landing-nav-links">
         <button className="landing-login" type="button">
-          登录
+          导入项目
         </button>
         <button className={`landing-nav-cta ${active === "start" ? "active" : ""}`} type="button" onClick={startDevFlow}>
-          开始使用
+          新建流程
         </button>
       </div>
     </nav>

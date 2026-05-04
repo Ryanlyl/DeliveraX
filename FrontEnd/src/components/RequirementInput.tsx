@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPipeline } from "../api/pipelines";
 import { exampleRequirement } from "../data/mockPipeline";
-import type { ProviderDefinition } from "../types/pipeline";
+import type { LLMProvider } from "../types/pipeline";
 
 type Props = {
-  providers: ProviderDefinition[];
-  selectedProvider: ProviderDefinition | null;
-  selectedModel: string;
-  onProviderChange: (providerId: string) => void;
-  onModelChange: (model: string) => void;
+  selectedModel: LLMProvider;
+  onModelChange: (model: LLMProvider) => void;
 };
+
+const modelOptions: LLMProvider[] = ["GPT-4", "Claude 3"];
 const placeholderPrompts = [
   "优化登录页面交互体验",
   "为任务列表增加筛选和排序功能",
@@ -18,13 +16,13 @@ const placeholderPrompts = [
   "实现一个简单的聊天界面",
 ];
 const flowStages = ["需求", "方案", "代码", "测试", "评审", "交付"];
+const exampleChips = ["按钮视觉升级", "列表筛选排序", "仪表盘页面", "聊天交互"];
 
-export default function RequirementInput({ providers, selectedProvider, selectedModel, onProviderChange, onModelChange }: Props) {
+export default function RequirementInput({ selectedModel, onModelChange }: Props) {
   const [value, setValue] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const [startError, setStartError] = useState<string | null>(null);
   const loadingTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;
@@ -50,73 +48,43 @@ export default function RequirementInput({ providers, selectedProvider, selected
     [],
   );
 
-  const startPipeline = async () => {
+  const startPipeline = () => {
     if (isStarting) return;
 
-    const requirement = hasInput ? value.trim() : exampleRequirement;
-    if (!hasInput) setValue(requirement);
+    if (!hasInput) {
+      setValue(exampleRequirement);
+    }
 
     setIsStarting(true);
-    setStartError(null);
-
-    try {
-      const pipeline = await createPipeline({
-        name: "AI DevFlow Pipeline",
-        requirement,
-        provider: selectedProvider?.id ?? selectedModel,
-        model: selectedModel || selectedProvider?.default_model || undefined,
-        repo_path: import.meta.env.VITE_DELIVERAX_REPO_PATH || undefined,
-      });
-      loadingTimerRef.current = window.setTimeout(() => {
-        navigate(`/pipeline/${encodeURIComponent(pipeline.id)}`);
-      }, 320);
-    } catch (error) {
-      setStartError(error instanceof Error ? error.message : "Failed to create pipeline");
-      setIsStarting(false);
-    }
+    loadingTimerRef.current = window.setTimeout(() => {
+      navigate(`/pipeline/demo-001?model=${encodeURIComponent(selectedModel)}`);
+    }, 700);
   };
 
   return (
     <section className="requirement-card" aria-label="需求输入">
       <div className="requirement-header">
         <div className="section-heading">
+          <span className="eyebrow">Requirement Intake</span>
           <h2>描述你希望 AI 推进的前端变更</h2>
+          <p>建议写清页面、目标、交互状态和验收标准，AI 会把它整理成可审阅的研发链路。</p>
         </div>
-        <div className="model-picker" aria-label="Provider 与模型选择">
-          <label>
-            <span className="model-label">Provider：</span>
-            <select
-              value={selectedProvider?.id ?? ""}
-              onChange={(event) => onProviderChange(event.target.value)}
-              aria-label="选择 Provider"
-            >
-              {providers.length === 0 && <option value="">加载中…</option>}
-              {providers.map((p) => (
-                <option key={p.id} value={p.id} disabled={!p.available}>
-                  {p.name}{!p.available ? " (不可用)" : ""}{p.configured ? "" : " (未配置)"}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="model-picker" aria-label="模型选择">
           <label>
             <span className="model-label">模型：</span>
             <select
               value={selectedModel}
-              onChange={(event) => onModelChange(event.target.value)}
+              onChange={(event) => onModelChange(event.target.value as LLMProvider)}
               aria-label="选择模型"
             >
-              {(selectedProvider?.models ?? []).map((m) => (
-                <option key={m} value={m}>{m}</option>
+              {modelOptions.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
               ))}
-              {(!selectedProvider || selectedProvider.models.length === 0) && (
-                <option value="">无可用模型</option>
-              )}
             </select>
           </label>
-          {selectedProvider && !selectedProvider.configured && (
-            <small>⚠️ 未配置 API Key ({selectedProvider.api_key_env})</small>
-          )}
-          {selectedProvider?.notes && <small>{selectedProvider.notes}</small>}
+          <small>支持 OpenAI / Anthropic</small>
         </div>
       </div>
       <div className="textarea-shell">
@@ -133,7 +101,15 @@ export default function RequirementInput({ providers, selectedProvider, selected
         )}
       </div>
       {hasInput && <p className="ai-input-hint">AI 将为你生成：页面结构 + 交互逻辑 + API 定义</p>}
-      {startError && <p className="ai-input-hint error">{startError}</p>}
+      {!hasInput && (
+        <div className="requirement-chip-row" aria-label="示例需求">
+          {exampleChips.map((chip, index) => (
+            <button key={chip} type="button" onClick={() => setValue(placeholderPrompts[index])}>
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flow-hint" aria-label="DevFlow Pipeline stages">
         {flowStages.map((stage, index) => (
           <span className={`flow-step ${hasInput && index === 0 ? "active" : ""}`} key={stage}>
@@ -153,7 +129,7 @@ export default function RequirementInput({ providers, selectedProvider, selected
           disabled={isStarting}
         >
           {isStarting && <span className="button-spinner" aria-hidden="true" />}
-          {isStarting ? "正在生成方案…" : "启动 AI 开发流程"}
+          {isStarting ? "正在创建流程..." : "启动 AI 开发流程"}
         </button>
       </div>
     </section>
