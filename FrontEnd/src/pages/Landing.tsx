@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import AppNav from "../components/AppNav";
 
@@ -85,7 +85,7 @@ const pipelineCapabilities: Array<{
     agent: "Req Agent",
     number: "01",
     from: "模糊需求",
-    to: "结构化需求",
+    to: "结构需求",
     stage: "需求分析",
     description: "将自然语言转化为可执行描述",
     points: ["消除理解偏差", "输出结构化结果", "沉淀需求上下文"],
@@ -116,7 +116,7 @@ const pipelineCapabilities: Array<{
     agent: "Test Agent",
     number: "04",
     from: "代码实现",
-    to: "可验证结果",
+    to: "可靠结果",
     stage: "测试生成",
     description: "自动验证代码行为",
     points: ["覆盖变更点", "对齐验收标准", "输出验证结果"],
@@ -136,7 +136,7 @@ const pipelineCapabilities: Array<{
     agent: "Merge Agent",
     number: "06",
     from: "验证结果",
-    to: "可交付产物",
+    to: "交付产物",
     stage: "交付集成",
     description: "输出最终可用结果",
     points: ["汇总交付产物", "保留执行记录", "支持集成发布"],
@@ -240,8 +240,12 @@ export default function Landing() {
 
   const startDevFlow = () => navigate("/home");
   const viewPipelineDemo = () => navigate("/pipeline/demo-001?model=GPT-4");
-  const focusFeatures = () => {
-    document.getElementById("landing-preview")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const focusFeatures = (e: MouseEvent) => {
+    const target = document.getElementById("features");
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   useEffect(() => {
