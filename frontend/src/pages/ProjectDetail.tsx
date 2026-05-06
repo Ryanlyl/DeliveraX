@@ -1,42 +1,45 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppNav from "../components/AppNav";
-import type { Pipeline, Project } from "../types/pipeline";
+import { Api } from "../api/client";
+import type { PipelineRecord, ProjectRecord } from "../api/client";
 
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
-  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [pipelines, setPipelines] = useState<PipelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    fetch(`/api/projects/${projectId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("not found");
-        return res.json();
-      })
-      .then((data: Project) => {
-        setProject(data);
-        setLoading(false);
-        // Fetch associated pipelines
-        if (data.pipeline_ids.length > 0) {
-          return fetch("/api/pipelines")
-            .then((res) => res.json())
-            .then((all: Pipeline[]) => {
-              setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
-            });
-        }
-      })
-      .catch(() => setLoading(false));
+  const fetchProject = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await Api.getProject(projectId);
+      setProject(data);
+      if (data.pipeline_ids.length > 0) {
+        const all = await Api.listPipelines();
+        setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Project not found");
+    } finally {
+      setLoading(false);
+    }
   }, [projectId]);
 
+  useEffect(() => {
+    fetchProject();
+  }, [fetchProject]);
+
   const handleDelete = async () => {
-    if (deleting) return;
+    if (deleting || !projectId) return;
     setDeleting(true);
     try {
-      await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      await Api.deleteProject(projectId);
       navigate("/projects");
     } catch {
       setDeleting(false);
@@ -55,18 +58,24 @@ export default function ProjectDetail() {
     );
   }
 
-  if (!project) {
+  if (error || !project) {
     return (
       <main className="project-detail-page">
         <div className="landing-grid-overlay" aria-hidden="true" />
         <AppNav active="projects" />
         <section className="project-detail-section">
           <div className="projects-empty">
-            <h3>项目不存在</h3>
-            <p>该项目可能已被删除。</p>
-            <button className="landing-primary" type="button" onClick={() => navigate("/projects")}>
-              返回项目列表
-            </button>
+            <h3>{error ? "加载失败" : "项目不存在"}</h3>
+            <p>{error ?? "该项目可能已被删除。"}</p>
+            {error ? (
+              <button className="landing-primary" type="button" onClick={fetchProject}>
+                重试
+              </button>
+            ) : (
+              <button className="landing-primary" type="button" onClick={() => navigate("/projects")}>
+                返回项目列表
+              </button>
+            )}
           </div>
         </section>
       </main>
@@ -126,7 +135,7 @@ export default function ProjectDetail() {
             <button
               className="landing-primary"
               type="button"
-              onClick={() => navigate(`/home?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
+              onClick={() => navigate(`/dashboard?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
             >
               新建流程
             </button>
@@ -144,7 +153,7 @@ export default function ProjectDetail() {
               <button
                 className="landing-primary"
                 type="button"
-                onClick={() => navigate(`/home?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
+                onClick={() => navigate(`/dashboard?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
                 style={{ marginTop: "12px" }}
               >
                 新建流程

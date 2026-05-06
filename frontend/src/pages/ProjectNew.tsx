@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppNav from "../components/AppNav";
+import { Api } from "../api/client";
 
 export default function ProjectNew() {
   const navigate = useNavigate();
@@ -18,20 +19,11 @@ export default function ProjectNew() {
     setError("");
 
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || null,
-          github_url: githubUrl.trim(),
-        }),
+      const project = await Api.createProject({
+        name: name.trim(),
+        description: description.trim() || null,
+        github_url: githubUrl.trim(),
       });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => null);
-        throw new Error(detail?.detail || "创建失败");
-      }
-      const project = await res.json();
       navigate(`/projects/${project.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建失败，请重试");

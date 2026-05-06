@@ -4,21 +4,19 @@ WORKDIR /workspace
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DELIVERAX_HOST=0.0.0.0
+ENV DELIVERAX_RELOAD=false
 
-COPY ApiServer/requirements.txt /workspace/ApiServer/requirements.txt
-RUN pip install --no-cache-dir -r /workspace/ApiServer/requirements.txt
+COPY server/requirements.txt /workspace/server/requirements.txt
+RUN pip install --no-cache-dir -r /workspace/server/requirements.txt
 
-COPY ApiServer/ /workspace/ApiServer/
 COPY stage_contracts/ /workspace/stage_contracts/
-COPY ReqAnalysis/ /workspace/ReqAnalysis/
-COPY SolDesign/ /workspace/SolDesign/
-COPY CodeGen/ /workspace/CodeGen/
-COPY CodeTest/ /workspace/CodeTest/
-COPY Integration/ /workspace/Integration/
-COPY ReviewGate/ /workspace/ReviewGate/
+COPY server/ /workspace/server/
+COPY agents/ /workspace/agents/
+COPY .env /workspace/.env
 
 EXPOSE 8000
 
-WORKDIR /workspace/ApiServer
+WORKDIR /workspace/server
 
 CMD ["python", "run.py"]

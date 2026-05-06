@@ -1,8 +1,8 @@
-import type { Stage } from "../types/pipeline";
+import type { StageRecord } from "../api/client";
 import StageCard from "./StageCard";
 
 type Props = {
-  stages: Stage[];
+  stages: StageRecord[];
   activeStageId: string;
   selectedStageId: string;
   onSelectStage: (stageId: string) => void;

@@ -2,13 +2,13 @@ import type { MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 type Props = {
-  active?: "home" | "start" | "projects" | "demo";
+  active?: "dashboard" | "start" | "projects" | "demo";
   onFeaturesClick?: (e: MouseEvent) => void;
 };
 
-export default function AppNav({ active = "home", onFeaturesClick }: Props) {
+export default function AppNav({ active, onFeaturesClick }: Props) {
   const navigate = useNavigate();
-  const startDevFlow = () => navigate("/home");
+  const startDevFlow = () => navigate("/dashboard");
   const goLanding = () => navigate("/");
   const goProjects = () => navigate("/projects");
   const goNewProject = () => navigate("/projects/new");
@@ -23,7 +23,7 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
         </span>
       </button>
       <div className="landing-nav-center" aria-label="Primary navigation">
-        <Link className={active === "home" ? "active" : ""} to="/">
+        <Link className={active === "dashboard" ? "active" : ""} to="/dashboard">
           工作台
         </Link>
         <Link to="/#features" onClick={(e) => onFeaturesClick?.(e)}>
@@ -32,7 +32,7 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
         <Link className={active === "projects" ? "active" : ""} to="/projects">
           项目仓库
         </Link>
-        <Link className={active === "demo" ? "active" : ""} to="/pipeline/demo-001?model=GPT-4">
+        <Link className={active === "demo" ? "active" : ""} to="/projects">
           流程演示
         </Link>
       </div>

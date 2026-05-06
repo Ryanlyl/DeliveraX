@@ -4,20 +4,17 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DELIVERAX_RELOAD=false
 
-COPY ApiServer/requirements.txt /app/ApiServer/requirements.txt
-RUN pip install --no-cache-dir -r /app/ApiServer/requirements.txt
+COPY server/requirements.txt /app/server/requirements.txt
+RUN pip install --no-cache-dir -r /app/server/requirements.txt
 
-COPY ApiServer/ /app/ApiServer/
 COPY stage_contracts/ /app/stage_contracts/
-COPY ReqAnalysis/ /app/ReqAnalysis/
-COPY SolDesign/ /app/SolDesign/
-COPY CodeGen/ /app/CodeGen/
-COPY CodeTest/ /app/CodeTest/
-COPY Integration/ /app/Integration/
-COPY ReviewGate/ /app/ReviewGate/
+COPY server/ /app/server/
+COPY agents/ /app/agents/
+COPY .env /app/.env
 
-WORKDIR /app/ApiServer
+WORKDIR /app/server
 
 EXPOSE 8000
 

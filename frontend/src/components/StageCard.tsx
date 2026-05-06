@@ -1,7 +1,7 @@
-import type { Stage } from "../types/pipeline";
+import type { StageRecord, StageStatus } from "../api/client";
 
 type Props = {
-  stage: Stage;
+  stage: StageRecord;
   active: boolean;
   selected: boolean;
   disabled: boolean;
@@ -9,7 +9,7 @@ type Props = {
   onSelect: () => void;
 };
 
-const statusLabel: Record<Stage["status"], string> = {
+const statusLabel: Record<StageStatus, string> = {
   queued: "待执行",
   running: "执行中",
   succeeded: "已完成",
@@ -20,7 +20,7 @@ const statusLabel: Record<Stage["status"], string> = {
   skipped: "已跳过",
 };
 
-const statusIcon: Record<Stage["status"], string> = {
+const statusIcon: Record<StageStatus, string> = {
   queued: "○",
   running: "●",
   succeeded: "✓",
@@ -31,9 +31,14 @@ const statusIcon: Record<Stage["status"], string> = {
   skipped: "○",
 };
 
+function fmtDuration(ms: number): string {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${ms}ms`;
+}
+
 export default function StageCard({ stage, active, selected, disabled, isLast, onSelect }: Props) {
   const isCheckpointPending = stage.checkpoint && stage.status === "pending_approval";
-  const shouldShowDuration = stage.status !== "queued" && stage.duration !== "0.0s";
+  const shouldShowDuration = stage.status !== "queued" && stage.duration_ms > 0;
 
   return (
     <button
@@ -55,7 +60,7 @@ export default function StageCard({ stage, active, selected, disabled, isLast, o
           <span aria-hidden="true">{statusIcon[stage.status]}</span>
           {stage.status === "succeeded" && stage.checkpoint ? "已完成（已审核）" : statusLabel[stage.status]}
         </span>
-        {shouldShowDuration && <span className="duration">{stage.duration}</span>}
+        {shouldShowDuration && <span className="duration">{fmtDuration(stage.duration_ms)}</span>}
       </span>
     </button>
   );

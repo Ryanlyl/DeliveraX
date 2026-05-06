@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { exampleRequirement } from "../data/mockPipeline";
-import type { LLMProvider } from "../types/pipeline";
+import { Api } from "../api/client";
+import ProviderSelector from "./ProviderSelector";
+import type { ProviderSelection } from "./ProviderSelector";
 
 type ProjectContext = {
   project_id: string;
@@ -9,12 +10,9 @@ type ProjectContext = {
 };
 
 type Props = {
-  selectedModel: LLMProvider;
-  onModelChange: (model: LLMProvider) => void;
   projectContext?: ProjectContext;
 };
 
-const modelOptions: LLMProvider[] = ["GPT-4", "Claude 3"];
 const placeholderPrompts = [
   "优化登录页面交互体验",
   "为任务列表增加筛选和排序功能",
@@ -24,14 +22,19 @@ const placeholderPrompts = [
 const flowStages = ["需求", "方案", "代码", "测试", "评审", "交付"];
 const exampleChips = ["按钮视觉升级", "列表筛选排序", "仪表盘页面", "聊天交互"];
 
-export default function RequirementInput({ selectedModel, onModelChange, projectContext }: Props) {
+export default function RequirementInput({ projectContext }: Props) {
   const [value, setValue] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const loadingTimerRef = useRef<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selection, setSelection] = useState<ProviderSelection>({ providerId: "local", modelId: "local" });
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;
+
+  const handleSelectionChange = useCallback((sel: ProviderSelection) => {
+    setSelection(sel);
+  }, []);
 
   useEffect(() => {
     if (hasInput) return undefined;
@@ -47,29 +50,40 @@ export default function RequirementInput({ selectedModel, onModelChange, project
     return () => window.clearInterval(interval);
   }, [hasInput]);
 
-  useEffect(
-    () => () => {
-      if (loadingTimerRef.current) window.clearTimeout(loadingTimerRef.current);
-    },
-    [],
-  );
-
-  const startPipeline = () => {
+  const startPipelineFlow = async () => {
     if (isStarting) return;
 
     if (!hasInput) {
-      setValue(exampleRequirement);
+      setError("请输入开发需求描述");
+      return;
     }
 
+    setError(null);
     setIsStarting(true);
-    loadingTimerRef.current = window.setTimeout(() => {
-      const params = new URLSearchParams({ model: selectedModel });
+
+    try {
+      const pipeline = await Api.createPipeline({
+        requirement: value.trim(),
+        provider: selection.providerId || undefined,
+        model: selection.modelId || undefined,
+        repo_path: projectContext?.repo_path || undefined,
+      });
+
+      const run = await Api.startPipeline(pipeline.id, {
+        repo_path: projectContext?.repo_path || undefined,
+      });
+
+      const params = new URLSearchParams({ run_id: run.id });
       if (projectContext) {
         params.set("project_id", projectContext.project_id);
         params.set("repo_path", projectContext.repo_path);
       }
-      navigate(`/pipeline/demo-001?${params.toString()}`);
-    }, 700);
+      navigate(`/pipeline/${pipeline.id}?${params.toString()}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "创建流程失败，请检查后端服务是否可用";
+      setError(message);
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -80,28 +94,12 @@ export default function RequirementInput({ selectedModel, onModelChange, project
           <h2>描述你希望 AI 推进的前端变更</h2>
           <p>建议写清页面、目标、交互状态和验收标准，AI 会把它整理成可审阅的研发链路。</p>
         </div>
-        <div className="model-picker" aria-label="模型选择">
-          <label>
-            <span className="model-label">模型：</span>
-            <select
-              value={selectedModel}
-              onChange={(event) => onModelChange(event.target.value as LLMProvider)}
-              aria-label="选择模型"
-            >
-              {modelOptions.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-          <small>支持 OpenAI / Anthropic</small>
-        </div>
+        <ProviderSelector value={selection} onChange={handleSelectionChange} />
       </div>
       <div className="textarea-shell">
         <textarea
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => { setValue(event.target.value); setError(null); }}
           aria-label="描述开发需求"
         />
         {!hasInput && (
@@ -111,7 +109,8 @@ export default function RequirementInput({ selectedModel, onModelChange, project
           </div>
         )}
       </div>
-      {hasInput && <p className="ai-input-hint">AI 将为你生成：页面结构 + 交互逻辑 + API 定义</p>}
+      {error && <p className="ai-input-error">{error}</p>}
+      {hasInput && !error && <p className="ai-input-hint">AI 将为你生成：页面结构 + 交互逻辑 + API 定义</p>}
       {!hasInput && (
         <div className="requirement-chip-row" aria-label="示例需求">
           {exampleChips.map((chip, index) => (
@@ -130,13 +129,10 @@ export default function RequirementInput({ selectedModel, onModelChange, project
         ))}
       </div>
       <div className="requirement-actions">
-        <button className="button secondary example-button" type="button" onClick={() => setValue(exampleRequirement)}>
-          使用示例需求
-        </button>
         <button
           className={`button primary start-button ${hasInput ? "ready" : ""}`}
           type="button"
-          onClick={startPipeline}
+          onClick={startPipelineFlow}
           disabled={isStarting}
         >
           {isStarting && <span className="button-spinner" aria-hidden="true" />}

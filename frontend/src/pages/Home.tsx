@@ -1,12 +1,54 @@
-import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppNav from "../components/AppNav";
 import RequirementInput from "../components/RequirementInput";
-import type { LLMProvider } from "../types/pipeline";
+import { Api } from "../api/client";
+import type { PipelineRecord } from "../api/client";
+
+const pipelineStatusLabel: Record<string, string> = {
+  queued: "排队中",
+  running: "运行中",
+  paused: "已暂停",
+  pending_approval: "待审核",
+  succeeded: "已完成",
+  failed: "失败",
+  rejected: "已拒绝",
+  cancelled: "已取消",
+  terminated: "已终止",
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString("zh-CN");
+}
 
 export default function Home() {
-  const [selectedModel, setSelectedModel] = useState<LLMProvider>("GPT-4");
+  const [pipelines, setPipelines] = useState<PipelineRecord[]>([]);
+  const [loadingPipelines, setLoadingPipelines] = useState(true);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // ── pipelines ──
+
+  const fetchPipelines = useCallback(async () => {
+    setLoadingPipelines(true);
+    setPipelineError(null);
+    try {
+      const list = await Api.listPipelines();
+      setPipelines(list);
+    } catch (e) {
+      setPipelineError(e instanceof Error ? e.message : "Failed to load pipelines");
+    } finally {
+      setLoadingPipelines(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPipelines();
+  }, [fetchPipelines]);
+
+  // ── project context (from URL params via project page) ──
 
   const projectContext = useMemo(() => {
     const projectId = searchParams.get("project_id");
@@ -17,42 +59,102 @@ export default function Home() {
     return undefined;
   }, [searchParams]);
 
+  const currentStageLabel = (p: PipelineRecord): string => {
+    const active = p.stages.find(
+      (s) => s.status === "running" || s.status === "pending_approval",
+    );
+    if (active) return active.name;
+    if (p.stages.length > 0) {
+      const lastDone = [...p.stages].reverse().find((s) => s.status === "succeeded");
+      if (lastDone) return lastDone.name;
+    }
+    return "—";
+  };
+
   return (
     <main className="home-page">
       <div className="home-grid-overlay" aria-hidden="true" />
       <div className="home-glow home-glow-right" aria-hidden="true" />
       <div className="home-glow home-glow-left" aria-hidden="true" />
 
-      <AppNav active="start" />
+      <AppNav active="dashboard" />
 
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">AI DevFlow Workbench</span>
-          <h1>
-            从需求到代码的
-            <span>自动化研发工作台</span>
-          </h1>
-          <p className="hero-description">
-            输入一个前端变更需求，系统会拆解 PRD、方案、代码、测试和评审节点，并在关键检查点交给你确认。
-          </p>
-          {projectContext && (
-            <p className="hero-project-context">
-              目标仓库：{projectContext.repo_path}
-            </p>
-          )}
-          <div className="hero-metrics" aria-label="DevFlow 摘要">
-            <span><strong>6</strong> 个自动化节点</span>
-            <span><strong>2</strong> 个人工检查点</span>
-            <span><strong>18s</strong> 演示交付链路</span>
+      {/* ── Pipeline list ── */}
+      <section className="dashboard-pipeline-section">
+        <div className="dashboard-header">
+          <div>
+            <span className="eyebrow">Pipeline Dashboard</span>
+            <h1>AI DevFlow 流程列表</h1>
+            <p>管理和追踪所有 AI 驱动的开发流程。</p>
           </div>
+          {!loadingPipelines && !pipelineError && (
+            <span className="pipeline-count">{pipelines.length} 个流程</span>
+          )}
         </div>
+
+        {loadingPipelines && (
+          <div className="dashboard-status">
+            <span className="spinner" aria-hidden="true" />
+            <p>加载流程列表...</p>
+          </div>
+        )}
+
+        {pipelineError && (
+          <div className="dashboard-status dashboard-error">
+            <p>加载失败：{pipelineError}</p>
+            <button className="button primary small" type="button" onClick={fetchPipelines}>
+              重试
+            </button>
+          </div>
+        )}
+
+        {!loadingPipelines && !pipelineError && pipelines.length === 0 && (
+          <div className="dashboard-status">
+            <p>暂无流程，请在下方创建第一个 DevFlow。</p>
+          </div>
+        )}
+
+        {!loadingPipelines && !pipelineError && pipelines.length > 0 && (
+          <div className="pipeline-list">
+            {pipelines.map((p) => (
+              <button
+                key={p.id}
+                className="pipeline-list-item"
+                type="button"
+                onClick={() => navigate(`/pipeline/${p.id}`)}
+              >
+                <div className="pipeline-list-item-left">
+                  <strong className="pipeline-list-item-name">{p.name}</strong>
+                  <span className="pipeline-list-item-id">ID: {p.id}</span>
+                  <span className="pipeline-list-item-requirement">
+                    {p.requirement.slice(0, 80)}
+                    {p.requirement.length > 80 ? "..." : ""}
+                  </span>
+                </div>
+                <div className="pipeline-list-item-center">
+                  <span className="pipeline-list-item-stage">
+                    当前阶段：{currentStageLabel(p)}
+                  </span>
+                  <span className="pipeline-list-item-provider">
+                    {p.provider}{p.model ? ` / ${p.model}` : ""}
+                  </span>
+                </div>
+                <div className="pipeline-list-item-right">
+                  <span className={`status-pill ${p.status}`}>
+                    {pipelineStatusLabel[p.status] || p.status}
+                  </span>
+                  <span className="pipeline-list-item-date">
+                    {formatDate(p.created_at)}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
-      <RequirementInput
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-        projectContext={projectContext}
-      />
+      {/* ── Create pipeline ── */}
+      <RequirementInput projectContext={projectContext} />
     </main>
   );
 }
