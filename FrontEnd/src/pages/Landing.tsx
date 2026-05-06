@@ -239,7 +239,7 @@ export default function Landing() {
   const [isCapabilityPaused, setIsCapabilityPaused] = useState(false);
 
   const startDevFlow = () => navigate("/home");
-  const viewPipelineDemo = () => navigate("/pipeline/demo-001?model=GPT-4");
+  const viewProjects = () => navigate("/projects");
   const focusFeatures = (e: MouseEvent) => {
     const target = document.getElementById("features");
     if (target) {
@@ -307,9 +307,9 @@ export default function Landing() {
               <SvgIcon name="rocket" className="landing-button-icon" />
               免费体验 AI 自动开发
             </button>
-            <button className="landing-secondary" type="button" onClick={viewPipelineDemo}>
+            <button className="landing-secondary" type="button" onClick={viewProjects}>
               <SvgIcon name="play" className="landing-button-icon" />
-              看 AI 如何完成一次完整开发流程
+              进入项目仓库
             </button>
           </div>
           <div className="landing-trust-signals" aria-label="DeliveraX 能力数据">

@@ -1,7 +1,0 @@
-.workspace/
-__pycache__/
-*.pyc
-.pytest_cache/
-.env
-Output/*
-!Output/.gitkeep

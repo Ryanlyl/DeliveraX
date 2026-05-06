@@ -21,6 +21,18 @@ export type Stage = {
   logs: string[];
 };
 
+export type Project = {
+  id: string;
+  name: string;
+  description: string | null;
+  github_url: string;
+  clone_status: "pending" | "cloning" | "ready" | "failed";
+  clone_path: string | null;
+  created_at: string;
+  updated_at: string;
+  pipeline_ids: string[];
+};
+
 export type Pipeline = {
   id: string;
   name: string;

@@ -3,9 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { exampleRequirement } from "../data/mockPipeline";
 import type { LLMProvider } from "../types/pipeline";
 
+type ProjectContext = {
+  project_id: string;
+  repo_path: string;
+};
+
 type Props = {
   selectedModel: LLMProvider;
   onModelChange: (model: LLMProvider) => void;
+  projectContext?: ProjectContext;
 };
 
 const modelOptions: LLMProvider[] = ["GPT-4", "Claude 3"];
@@ -18,7 +24,7 @@ const placeholderPrompts = [
 const flowStages = ["需求", "方案", "代码", "测试", "评审", "交付"];
 const exampleChips = ["按钮视觉升级", "列表筛选排序", "仪表盘页面", "聊天交互"];
 
-export default function RequirementInput({ selectedModel, onModelChange }: Props) {
+export default function RequirementInput({ selectedModel, onModelChange, projectContext }: Props) {
   const [value, setValue] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
@@ -57,7 +63,12 @@ export default function RequirementInput({ selectedModel, onModelChange }: Props
 
     setIsStarting(true);
     loadingTimerRef.current = window.setTimeout(() => {
-      navigate(`/pipeline/demo-001?model=${encodeURIComponent(selectedModel)}`);
+      const params = new URLSearchParams({ model: selectedModel });
+      if (projectContext) {
+        params.set("project_id", projectContext.project_id);
+        params.set("repo_path", projectContext.repo_path);
+      }
+      navigate(`/pipeline/demo-001?${params.toString()}`);
     }, 700);
   };
 
