@@ -18,7 +18,7 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
     logs = ["CodeTest stage started"]
     try:
-        from agent.graph import run_codetest
+        from code_testing.graph import run_codetest
 
         stage_dir = resolve_stage_artifact_dir(request)
         stage_dir.mkdir(parents=True, exist_ok=True)

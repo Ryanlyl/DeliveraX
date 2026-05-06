@@ -13,6 +13,7 @@ def ensure_repo_paths(root: Path | None = None) -> Path:
     candidates = [resolved_root]
     agents_dir = resolved_root / "agents"
     if agents_dir.is_dir():
+        candidates.append(agents_dir)
         for entry in sorted(agents_dir.iterdir()):
             if entry.is_dir() and not entry.name.startswith("."):
                 candidates.append(entry)

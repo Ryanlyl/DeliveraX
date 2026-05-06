@@ -1,6 +1,14 @@
-export type StageStatus = "waiting" | "running" | "success" | "failed" | "pending_review";
+export type StageStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "pending_approval"
+  | "rejected"
+  | "cancelled"
+  | "skipped";
 
-export type PipelineStatus = "Running" | "Waiting for Review" | "Completed";
+export type PipelineStatus = "queued" | "running" | "succeeded" | "failed" | "pending_approval" | "rejected" | "cancelled" | "paused" | "terminated";
 
 export type StageTab = "Output" | "Input" | "JSON";
 

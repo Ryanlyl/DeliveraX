@@ -176,7 +176,7 @@ const requirementSpec = {
 
 export const initialStages: Stage[] = [
   {
-    id: "requirement",
+    id: "requirements",
     name: "需求分析",
     agent: "Requirement Agent",
     status: "running",
@@ -190,10 +190,10 @@ export const initialStages: Stage[] = [
     logs: ["Requirement Agent started", "Parsing natural language requirement", "Generated RequirementSpec JSON"],
   },
   {
-    id: "design",
+    id: "solution",
     name: "方案设计",
     agent: "Design Agent",
-    status: "waiting",
+    status: "queued",
     duration: "0.0s",
     input: "RequirementSpec JSON + current frontend component context",
     output: `# 技术方案设计：任务列表完成按钮视觉强化与状态反馈
@@ -404,7 +404,7 @@ implementation_contract:
     id: "code",
     name: "代码生成",
     agent: "Code Agent",
-    status: "waiting",
+    status: "queued",
     duration: "0.0s",
     input: "Approved technical design + target component files",
     output: `diff --git a/src/components/TaskItem.tsx b/src/components/TaskItem.tsx
@@ -441,7 +441,7 @@ diff --git a/src/styles/task-list.css b/src/styles/task-list.css
     id: "test",
     name: "测试生成",
     agent: "Test Agent",
-    status: "waiting",
+    status: "queued",
     duration: "0.0s",
     input: "Generated code diff + acceptance criteria",
     output: `import { fireEvent, render, screen } from "@testing-library/react";
@@ -477,7 +477,7 @@ Test Results
     id: "review",
     name: "代码评审",
     agent: "Review Agent",
-    status: "waiting",
+    status: "queued",
     duration: "0.0s",
     checkpoint: true,
     checkpointLabel: "代码评审确认",
@@ -516,10 +516,10 @@ Test Results
     logs: ["Review Agent started", "Analyzing generated diff", "Waiting for human approval"],
   },
   {
-    id: "merge",
+    id: "integration",
     name: "交付集成",
     agent: "Merge Agent",
-    status: "waiting",
+    status: "queued",
     duration: "0.0s",
     input: "Approved review report + generated artifacts",
     output: `# Delivery Result
@@ -552,7 +552,7 @@ Ready to Merge`,
 export const mockPipeline: Pipeline = {
   id: "demo-001",
   name: "AI DevFlow Pipeline",
-  status: "Running",
+  status: "running",
   provider: "GPT-4",
   totalDuration: "0.0s",
   requirement: exampleRequirement,
