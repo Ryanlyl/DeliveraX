@@ -100,6 +100,10 @@ async def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
     logs = ["ReqAnalysis stage started"]
     try:
+        # Create stage artifact directory early so a stuck LLM call is observable on disk.
+        stage_dir = resolve_stage_artifact_dir(request)
+        stage_dir.mkdir(parents=True, exist_ok=True)
+
         user_input = _resolve_user_input(request)
         runtime = get_current_llm_config()
         if runtime is not None:
@@ -117,8 +121,6 @@ async def run_stage(request: StageRunRequest) -> StageRunResult:
             llm_call=llm_call,
         )
 
-        stage_dir = resolve_stage_artifact_dir(request)
-        stage_dir.mkdir(parents=True, exist_ok=True)
         output_artifacts: list[ArtifactRef] = []
         if analysis.spec is not None:
             spec_path = stage_dir / "requirement_spec.json"

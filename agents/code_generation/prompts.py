@@ -47,7 +47,8 @@ def code_generation_prompt(
     {
       "path": "relative/path/from/repo/root",
       "operation": "Add | Modify | Delete",
-      "content": "complete final file content for Add/Modify, null for Delete",
+      "content_b64": "BASE64 of complete final file content for Add/Modify (UTF-8). null for Delete",
+      "content": "OPTIONAL (discouraged): raw content string. Prefer content_b64 to avoid JSON escaping issues.",
       "reason": "short implementation note"
     }
   ],
@@ -55,8 +56,9 @@ def code_generation_prompt(
 }""",
             "Rules:",
             "- Only include files listed in allowed_change_files.",
-            "- For Modify and Add, content must be the complete final file content, not a patch.",
-            "- For Delete, content must be null.",
+            "- For Modify and Add, prefer content_b64 (UTF-8). It must decode to the complete final file content, not a patch.",
+            "- If you provide content (raw string), it must be valid JSON string with proper escaping; content_b64 is safer.",
+            "- For Delete, set content_b64 to null (and content to null if present).",
             "- Do not invent external dependencies unless the design explicitly requires them.",
             "- Keep code changes scoped to the implementation_contract.",
             "implementation_contract:",

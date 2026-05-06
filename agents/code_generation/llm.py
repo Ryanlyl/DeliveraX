@@ -98,14 +98,30 @@ class ChatLLM:
         if not self.client:
             raise RuntimeError("LLM is not configured. Set CODEGEN_API_KEY or run with --local-only.")
         try:
-            response = self.client.chat.completions.create(
-                model=self.config.model,
-                temperature=self.config.temperature,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            )
+            # Prefer strict JSON mode when supported (OpenAI-compatible).
+            # Some providers/models may reject this parameter; fall back gracefully.
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.config.model,
+                    temperature=self.config.temperature,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                )
+            except APIStatusError as exc:
+                if exc.status_code in {400, 422}:
+                    response = self.client.chat.completions.create(
+                        model=self.config.model,
+                        temperature=self.config.temperature,
+                        messages=[
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": user},
+                        ],
+                    )
+                else:
+                    raise
         except AuthenticationError as exc:
             raise RuntimeError(_auth_error_message(self.config)) from exc
         except APITimeoutError as exc:
