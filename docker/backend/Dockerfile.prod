@@ -7,6 +7,9 @@ ENV PYTHONUNBUFFERED=1
 ENV DELIVERAX_RELOAD=false
 
 COPY server/requirements.txt /app/server/requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r /app/server/requirements.txt
 
 COPY stage_contracts/ /app/stage_contracts/

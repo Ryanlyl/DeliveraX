@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppNav from "../components/AppNav";
 import { Api } from "../api/client";
@@ -192,7 +192,12 @@ export default function ProjectDetail() {
 
         {project.clone_status === "failed" && (
           <div className="project-clone-warning" style={{ marginTop: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", color: "#b91c1c", fontSize: "14px" }}>
-            仓库克隆失败，请检查 GitHub URL 或后端 clone 日志。
+            <div>仓库克隆失败，请检查 GitHub URL 或后端 clone 日志。</div>
+            {project.clone_error && (
+              <div style={{ marginTop: "8px", color: "#7f1d1d", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                失败原因：{project.clone_error}
+              </div>
+            )}
           </div>
         )}
 
@@ -240,3 +245,4 @@ export default function ProjectDetail() {
     </main>
   );
 }
+

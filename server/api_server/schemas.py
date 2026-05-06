@@ -261,6 +261,7 @@ class ProjectRecord(BaseModel):
     github_url: str
     clone_status: Literal["pending", "cloning", "ready", "failed"] = "pending"
     clone_path: str | None = None
+    clone_error: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     pipeline_ids: list[str] = Field(default_factory=list)

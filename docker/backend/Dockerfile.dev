@@ -8,6 +8,9 @@ ENV DELIVERAX_HOST=0.0.0.0
 ENV DELIVERAX_RELOAD=false
 
 COPY server/requirements.txt /workspace/server/requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r /workspace/server/requirements.txt
 
 COPY stage_contracts/ /workspace/stage_contracts/

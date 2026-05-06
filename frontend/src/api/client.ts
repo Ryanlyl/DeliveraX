@@ -185,6 +185,7 @@ export interface ProjectRecord {
   github_url: string;
   clone_status: CloneStatus;
   clone_path?: string | null;
+  clone_error?: string | null;
   created_at: string;
   updated_at: string;
   pipeline_ids: string[];

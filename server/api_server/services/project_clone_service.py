@@ -22,6 +22,7 @@ def clone_project_repo(project_id: str, project_store: JsonProjectStore, artifac
 
     project.clone_status = "cloning"
     project.clone_path = None
+    project.clone_error = None
     project_store.save(project)
 
     try:
@@ -32,6 +33,7 @@ def clone_project_repo(project_id: str, project_store: JsonProjectStore, artifac
             if (target_dir / ".git").is_dir() and any(target_dir.iterdir()):
                 project.clone_status = "ready"
                 project.clone_path = str(target_dir.resolve())
+                project.clone_error = None
                 project_store.save(project)
                 return
             shutil.rmtree(target_dir, ignore_errors=True)
@@ -47,13 +49,15 @@ def clone_project_repo(project_id: str, project_store: JsonProjectStore, artifac
 
         project.clone_status = "ready"
         project.clone_path = str(target_dir.resolve())
+        project.clone_error = None
         project_store.save(project)
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to clone project repo for project_id=%s into %s", project_id, target_dir)
         try:
             project = project_store.get(project_id)
             project.clone_status = "failed"
             project.clone_path = None
+            project.clone_error = str(exc).strip() or exc.__class__.__name__
             project_store.save(project)
         except Exception:
             logger.exception("Failed to persist clone failure status for project_id=%s", project_id)
