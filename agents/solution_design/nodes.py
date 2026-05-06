@@ -314,6 +314,8 @@ def _local_design_draft(state: SolDesignState, template: str) -> str:
 
 ## 11. Implementation Contract
 
+> **Local-only warning:** change_files is intentionally empty. In local-only mode the CodeGen stage will produce a valid empty diff and mark the stage as succeeded. For production runs with an LLM, change_files must be populated from the file change plan above.
+
 ```yaml
 implementation_contract:
   objective: "{requirement_name}"
@@ -328,6 +330,10 @@ implementation_contract:
     - "Do not modify unrelated files."
     - "Prefer existing project patterns."
     - "Mark uncertainty instead of inventing missing paths."
+  notes:
+    - "local-only mode: change_files is empty by design"
+    - "CodeGen will produce empty diff artifacts in local-only mode"
+    - "For production use, configure LLM and re-run this stage"
 ```
 
 ---

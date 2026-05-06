@@ -58,6 +58,72 @@ function DiffBlock({ content }: { content: string }) {
   );
 }
 
+function toDisplayList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item) =>
+    typeof item === "string" ? item : JSON.stringify(item),
+  );
+}
+
+function StageErrorBlock({ stage }: { stage: StageRecord }) {
+  const dataErrors = toDisplayList(stage.data?.errors);
+  const dataWarnings = toDisplayList(stage.data?.warnings);
+
+  return (
+    <div className="stage-error-block" style={{ marginTop: "12px", padding: "12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", fontSize: "13px", lineHeight: "1.6" }}>
+      <h4 style={{ margin: "0 0 8px", color: "#b91c1c", fontSize: "14px" }}>Execution Error Details</h4>
+
+      {stage.error && (
+        <div style={{ marginBottom: "8px" }}>
+          <p style={{ margin: "0 0 4px" }}><strong>Error Code:</strong> <code>{stage.error.code}</code></p>
+          <p style={{ margin: "0 0 4px", color: "#991b1b" }}><strong>Message:</strong> {stage.error.message}</p>
+          {stage.error.details && Object.keys(stage.error.details).length > 0 && (
+            <details style={{ marginTop: "4px" }}>
+              <summary style={{ cursor: "pointer", color: "#b91c1c" }}>Error Details</summary>
+              <pre style={{ margin: "4px 0 0", padding: "8px", background: "#fff", border: "1px solid #fecaca", borderRadius: "4px", overflow: "auto", fontSize: "12px" }}>
+                {JSON.stringify(stage.error.details, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
+
+      {dataErrors.length > 0 && (
+        <details style={{ marginBottom: "8px" }}>
+          <summary style={{ cursor: "pointer", color: "#b91c1c" }}>Data Errors ({dataErrors.length})</summary>
+          <ul style={{ margin: "4px 0 0", paddingLeft: "20px", color: "#991b1b" }}>
+            {dataErrors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {dataWarnings.length > 0 && (
+        <details style={{ marginBottom: "8px" }}>
+          <summary style={{ cursor: "pointer", color: "#92400e" }}>Data Warnings ({dataWarnings.length})</summary>
+          <ul style={{ margin: "4px 0 0", paddingLeft: "20px", color: "#92400e" }}>
+            {dataWarnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <div style={{ marginTop: "8px", padding: "8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "4px", color: "#92400e", fontSize: "12px" }}>
+        <strong>Troubleshooting Suggestions:</strong>
+        <ul style={{ margin: "4px 0 0", paddingLeft: "20px" }}>
+          <li>Check that the project repository is cloned and accessible.</li>
+          <li>Verify the technical design artifact exists from the solution stage.</li>
+          <li>In local-only mode, an empty diff is expected — ensure local_only=true is set.</li>
+          <li>Check stage logs below for more details.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function ArtifactsList({ stage, reviewAssets }: { stage: StageRecord; reviewAssets: ReviewAssetsResponse | null }) {
   const artifacts = reviewAssets?.artifacts ?? [];
 
@@ -81,10 +147,22 @@ function ArtifactsList({ stage, reviewAssets }: { stage: StageRecord; reviewAsse
           ))}
         </ul>
       ) : (
-        <p>No output artifacts available.</p>
+        <div>
+          <p>No output artifacts available.</p>
+          {stage.status === "failed" && (
+            <p style={{ color: "#b91c1c", fontSize: "12px", marginTop: "4px" }}>
+              Stage failed before artifacts could be produced. See error details above and stage logs below.
+            </p>
+          )}
+          {stage.status === "running" && (
+            <p style={{ color: "#2563eb", fontSize: "12px", marginTop: "4px" }}>
+              Stage is still running — artifacts will appear when complete.
+            </p>
+          )}
+        </div>
       )}
       {stage.logs && stage.logs.length > 0 && (
-        <details>
+        <details open={stage.status === "failed"}>
           <summary>Stage Logs</summary>
           <pre className="raw-logs">{stage.logs.join("\n")}</pre>
         </details>
@@ -158,6 +236,8 @@ export default function StageDetailPanel({ stage, reviewAssets, isLoadingAssets 
       <div className="content-box">
         {renderContent()}
       </div>
+
+      {stage.status === "failed" && <StageErrorBlock stage={stage} />}
 
       <AgentLogs logs={stage.logs} model={stage.agent} />
     </section>

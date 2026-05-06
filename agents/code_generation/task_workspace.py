@@ -8,6 +8,24 @@ from datetime import datetime
 from pathlib import Path
 
 
+COPY_IGNORE_PATTERNS = (
+    ".git",
+    ".solution_design_fetch.json",
+    "__pycache__",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    ".vite",
+    ".venv",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "out",
+    "vendor",
+)
+
+
 def default_codegen_workspace_dir() -> Path:
     return Path(__file__).resolve().parents[1] / ".workspace"
 
@@ -101,7 +119,7 @@ def _copy_to_synthetic_git_repo(source: Path, repo: Path) -> str:
     shutil.copytree(
         source,
         repo,
-        ignore=shutil.ignore_patterns(".git", ".solution_design_fetch.json", "__pycache__"),
+        ignore=shutil.ignore_patterns(*COPY_IGNORE_PATTERNS),
     )
     _git(repo, ["init"])
     _git(repo, ["add", "-A"])

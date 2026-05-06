@@ -149,13 +149,14 @@ export default function ProjectDashboard() {
                   <button
                     className="landing-primary small"
                     type="button"
+                    disabled={!selectedProject.clone_path}
                     onClick={() =>
                       navigate(
-                        `/dashboard?project_id=${selectedProject.id}&repo_path=${encodeURIComponent(selectedProject.github_url)}`,
+                        `/dashboard?project_id=${selectedProject.id}&repo_path=${encodeURIComponent(selectedProject.clone_path || "")}`,
                       )
                     }
                   >
-                    新建流程
+                    {selectedProject.clone_path ? "新建流程" : "克隆中..."}
                   </button>
                 </div>
 
@@ -169,13 +170,14 @@ export default function ProjectDashboard() {
                     <button
                       className="landing-primary small"
                       type="button"
+                      disabled={!selectedProject.clone_path}
                       onClick={() =>
                         navigate(
-                          `/dashboard?project_id=${selectedProject.id}&repo_path=${encodeURIComponent(selectedProject.github_url)}`,
+                          `/dashboard?project_id=${selectedProject.id}&repo_path=${encodeURIComponent(selectedProject.clone_path || "")}`,
                         )
                       }
                     >
-                      启动第一个流程
+                      {selectedProject.clone_path ? "启动第一个流程" : "克隆中..."}
                     </button>
                   </div>
                 )}

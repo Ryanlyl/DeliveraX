@@ -26,8 +26,16 @@ def _first_artifact_path(request: StageRunRequest, *names: str) -> str | None:
 
 
 def run_stage(request: StageRunRequest) -> StageRunResult:
+    repo_path_input = request.repo_path or request.options.get("repo_path")
+    repo_url_input = request.options.get("repo_url")
+    local_only = bool(request.options.get("local_only", True))
     started_at = datetime.now(timezone.utc)
-    logs = ["SolDesign stage started"]
+    logs = [
+        "SolDesign stage started",
+        f"repo_path from request: {repo_path_input or '(none)'}",
+        f"repo_url from request: {repo_url_input or '(none)'}",
+        f"local_only: {local_only}",
+    ]
     try:
         repo_root = Path(__file__).resolve().parents[2]
         stage_dir = resolve_stage_artifact_dir(request)
@@ -40,8 +48,8 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         if not requirement_path:
             raise ValueError("SolDesign requires a requirement markdown artifact or options.requirement_path.")
 
-        repo_path = request.repo_path or request.options.get("repo_path")
-        repo_url = request.options.get("repo_url")
+        repo_path = repo_path_input
+        repo_url = repo_url_input
         if not repo_path and not repo_url:
             default_frontend = repo_root / "frontend"
             repo_path = str(default_frontend) if default_frontend.exists() else None

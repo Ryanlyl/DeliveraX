@@ -31,7 +31,7 @@ export interface ArtifactRef {
 export interface StageError {
   code: string;
   message: string;
-  detail?: string | Record<string, unknown>;
+  details?: Record<string, unknown>;
 }
 
 export interface LLMSelection {

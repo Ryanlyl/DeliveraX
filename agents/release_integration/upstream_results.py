@@ -8,7 +8,15 @@ from .schemas import UpstreamResult
 
 
 PASSED_TEST_STATUSES = {"pass", "passed", "success", "succeeded", "ok", "green"}
-APPROVED_REVIEW_STATUSES = {"approve", "approved", "accepted", "pass", "passed", "ok"}
+APPROVED_REVIEW_STATUSES = {
+    "approve",
+    "approved",
+    "accepted",
+    "pass",
+    "passed",
+    "ok",
+    "no-changes-detected",
+}
 
 
 def load_test_result(*, result_path: str | None, explicit_status: str | None) -> UpstreamResult:
@@ -54,6 +62,8 @@ def _load_upstream_result(
         path = str(Path(result_path).resolve())
         payload = read_json(path)
         status = _find_status(payload) or ""
+        if stage == "test" and _is_successful_local_only_test(payload):
+            status = "passed"
         detail = _find_detail(payload)
         return {"status": status, "source": "file", "path": path, "detail": detail}
     return {
@@ -65,7 +75,7 @@ def _load_upstream_result(
 
 def _find_status(payload: Any) -> str | None:
     if isinstance(payload, dict):
-        for key in ("status", "conclusion", "result", "decision", "state"):
+        for key in ("status", "conclusion", "result", "decision", "state", "verdict"):
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
@@ -97,4 +107,11 @@ def _find_detail(payload: Any) -> str:
 
 def _normalize_status(value: str) -> str:
     return value.strip().lower().replace("_", "-")
+
+
+def _is_successful_local_only_test(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    errors = payload.get("errors")
+    return bool(payload.get("local_only") is True and not errors)
 

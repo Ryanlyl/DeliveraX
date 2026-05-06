@@ -24,7 +24,11 @@ def load_design(state: CodeGenState) -> CodeGenState:
     markdown = read_markdown(state["design_path"])
     contract, metadata, warnings = parse_technical_design(markdown)
     if not contract.get("change_files"):
-        state.setdefault("errors", []).append("No change_files were found in the technical design.")
+        message = "No change_files were found in the technical design."
+        if state.get("local_only"):
+            state.setdefault("warnings", []).append(message + " local-only mode allows empty change_files.")
+        else:
+            state.setdefault("errors", []).append(message)
     state["design_markdown"] = markdown
     state["implementation_contract"] = contract
     state["design_metadata"] = metadata
