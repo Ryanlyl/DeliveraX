@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 type Props = {
-  active?: "home" | "start";
+  active?: "home" | "start" | "projects" | "demo";
   onFeaturesClick?: (e: MouseEvent) => void;
 };
 
@@ -10,6 +10,8 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
   const navigate = useNavigate();
   const startDevFlow = () => navigate("/home");
   const goLanding = () => navigate("/");
+  const goProjects = () => navigate("/projects");
+  const goNewProject = () => navigate("/projects/new");
 
   return (
     <nav className="landing-nav">
@@ -27,10 +29,15 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
         <Link to="/#features" onClick={(e) => onFeaturesClick?.(e)}>
           产品能力
         </Link>
-        <Link to="/pipeline/demo-001?model=GPT-4">流程演示</Link>
+        <Link className={active === "projects" ? "active" : ""} to="/projects">
+          项目仓库
+        </Link>
+        <Link className={active === "demo" ? "active" : ""} to="/pipeline/demo-001?model=GPT-4">
+          流程演示
+        </Link>
       </div>
       <div className="landing-nav-links">
-        <button className="landing-login" type="button">
+        <button className="landing-login" type="button" onClick={goNewProject}>
           导入项目
         </button>
         <button className={`landing-nav-cta ${active === "start" ? "active" : ""}`} type="button" onClick={startDevFlow}>

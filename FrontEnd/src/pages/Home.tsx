@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AppNav from "../components/AppNav";
 import RequirementInput from "../components/RequirementInput";
 import type { LLMProvider } from "../types/pipeline";
 
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState<LLMProvider>("GPT-4");
+  const [searchParams] = useSearchParams();
+
+  const projectContext = useMemo(() => {
+    const projectId = searchParams.get("project_id");
+    const repoPath = searchParams.get("repo_path");
+    if (projectId && repoPath) {
+      return { project_id: projectId, repo_path: repoPath };
+    }
+    return undefined;
+  }, [searchParams]);
 
   return (
     <main className="home-page">
@@ -24,6 +35,11 @@ export default function Home() {
           <p className="hero-description">
             输入一个前端变更需求，系统会拆解 PRD、方案、代码、测试和评审节点，并在关键检查点交给你确认。
           </p>
+          {projectContext && (
+            <p className="hero-project-context">
+              目标仓库：{projectContext.repo_path}
+            </p>
+          )}
           <div className="hero-metrics" aria-label="DevFlow 摘要">
             <span><strong>6</strong> 个自动化节点</span>
             <span><strong>2</strong> 个人工检查点</span>
@@ -32,7 +48,11 @@ export default function Home() {
         </div>
       </section>
 
-      <RequirementInput selectedModel={selectedModel} onModelChange={setSelectedModel} />
+      <RequirementInput
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+        projectContext={projectContext}
+      />
     </main>
   );
 }

@@ -16,7 +16,7 @@ services:
       - DELIVERAX_RELOAD=false
     volumes:
       - ..:/workspace
-    working_dir: /workspace/ApiServer
+    working_dir: /workspace/server
 
   frontend:
     build:
@@ -26,9 +26,9 @@ services:
       - "3000:3000"
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
     environment:
-      - VITE_DELIVERAX_API_BASE_URL=http://localhost:8000
+      - VITE_DELIVERAX_API_BASE_URL=http://backend:8000
     volumes:
-      - ../FrontEnd:/workspace
+      - ../frontend:/workspace
       - /workspace/node_modules
     working_dir: /workspace
     depends_on:
