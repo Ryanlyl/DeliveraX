@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -96,7 +97,7 @@ def generate_changes(state: CodeGenState) -> CodeGenState:
         ),
     )
     state["generation_raw"] = raw
-    parsed = _parse_generation_json(raw)
+    parsed = _parse_generation_json_with_retry(raw, llm=llm)
     changes = _validate_generated_changes(
         parsed.get("files", []),
         allowed_paths={item["path"] for item in state["implementation_contract"].get("change_files", [])},
@@ -231,10 +232,7 @@ def write_outputs(state: CodeGenState) -> CodeGenState:
 
 def _parse_generation_json(raw: str) -> dict[str, Any]:
     text = raw.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.lower().startswith("json"):
-            text = text[4:].strip()
+    text = _strip_markdown_fences(text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -243,6 +241,66 @@ def _parse_generation_json(raw: str) -> dict[str, Any]:
         if start >= 0 and end > start:
             return json.loads(text[start : end + 1])
         raise
+
+
+def _parse_generation_json_with_retry(raw: str, *, llm: ChatLLM) -> dict[str, Any]:
+    try:
+        return _parse_generation_json(raw)
+    except json.JSONDecodeError as exc:
+        def _repair(prompt: str) -> dict[str, Any] | None:
+            repaired = llm.complete(system=SYSTEM_PROMPT, user=prompt)
+            try:
+                return _parse_generation_json(repaired)
+            except json.JSONDecodeError:
+                return None
+
+        # Attempt 1: preserve meaning, strict JSON.
+        parsed = _repair(
+            (
+                "The previous response was not valid JSON and could not be parsed.\n"
+                "Rewrite it into a STRICTLY valid JSON object that matches the required schema.\n"
+                "- Output ONLY the JSON object (no markdown, no code fences, no extra text).\n"
+                "- Preserve the intended meaning.\n"
+                "\n"
+                "Original (invalid) output:\n"
+                f"{raw}\n"
+            )
+        )
+        if parsed is not None:
+            return parsed
+
+        # Attempt 2: force safer encoding to avoid string escaping issues.
+        parsed = _repair(
+            (
+                "The previous response was not valid JSON.\n"
+                "Return a STRICTLY valid JSON object ONLY.\n"
+                "Hard rules:\n"
+                "- Use ONLY `content_b64` for file contents. Set `content` to null or omit it entirely.\n"
+                "- `content_b64` MUST be base64 for UTF-8 bytes with NO line breaks.\n"
+                "- Do NOT include any raw file content in JSON strings.\n"
+                "- No markdown fences, no commentary.\n"
+                "\n"
+                "Original (invalid) output:\n"
+                f"{raw}\n"
+            )
+        )
+        if parsed is not None:
+            return parsed
+
+        # bubble up the original error for clearer debugging
+        raise exc
+
+
+def _strip_markdown_fences(text: str) -> str:
+    cleaned = text.strip()
+    if not cleaned.startswith("```"):
+        return cleaned
+    # remove leading and trailing fences; tolerate ```json ... ```
+    cleaned = cleaned.strip()
+    cleaned = cleaned.strip("`").strip()
+    if cleaned.lower().startswith("json"):
+        cleaned = cleaned[4:].strip()
+    return cleaned
 
 
 def _validate_generated_changes(files: Any, allowed_paths: set[str]) -> list[GeneratedFileChange]:
@@ -256,11 +314,19 @@ def _validate_generated_changes(files: Any, allowed_paths: set[str]) -> list[Gen
         if path not in allowed_paths:
             raise ValueError(f"Generated file is not in allowed_change_files: {path}")
         operation = _normalize_operation(str(item.get("operation", "Modify")))
+        content = item.get("content")
+        content_b64 = item.get("content_b64")
+        if content is None and content_b64 not in (None, "") and operation != "Delete":
+            try:
+                decoded = base64.b64decode(str(content_b64), validate=True)
+                content = decoded.decode("utf-8")
+            except Exception as exc:
+                raise ValueError(f"Invalid content_b64 for {path}: {exc}") from exc
         changes.append(
             {
                 "path": path,
                 "operation": operation,
-                "content": item.get("content"),
+                "content": content,
                 "reason": str(item.get("reason", "")),
             }
         )

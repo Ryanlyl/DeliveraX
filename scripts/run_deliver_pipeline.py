@@ -158,6 +158,16 @@ def main() -> None:
     if not os.environ.get("DEEPSEEK_BASE_URL"):
         os.environ.setdefault("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 
+    # Ensure repo-local packages (e.g. stage_contracts/) are importable for stage entrypoints
+    # that are executed with different working directories.
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    dx_root_str = str(dx_root)
+    if existing_pythonpath:
+        if dx_root_str not in existing_pythonpath.split(os.pathsep):
+            os.environ["PYTHONPATH"] = dx_root_str + os.pathsep + existing_pythonpath
+    else:
+        os.environ["PYTHONPATH"] = dx_root_str
+
     prefix = _sanitize_prefix(args.pipeline_prefix or f"pipe_{datetime.now():%Y%m%d%H%M%S}")
     run_id_ra = f"{prefix}_ra"
     task_cg = f"{prefix}_cg"

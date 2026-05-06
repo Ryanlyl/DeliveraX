@@ -2,7 +2,12 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 from pathlib import Path
+
+_AGENTS_DIR = Path(__file__).resolve().parents[1]
+if str(_AGENTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_AGENTS_DIR))
 
 from requirement_analysis import RequirementAnalysisInput, run_requirement_analysis
 from requirement_analysis.local_debug import write_local_debug_artifacts

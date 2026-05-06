@@ -19,12 +19,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-ref", help="Branch, tag, or commit SHA. Defaults to repository default branch.")
     parser.add_argument(
         "--output-dir",
-        default=str(Path(__file__).resolve().parents[1] / "Output"),
+        default=str(Path(__file__).resolve().parent / "Output"),
         help="Directory for generated technical design Markdown.",
     )
     parser.add_argument(
         "--template",
-        default=str(Path(__file__).resolve().parents[1] / "templates" / "technical_design_template.md"),
+        default=str(Path(__file__).resolve().parent / "templates" / "technical_design_template.md"),
         help="Path to technical design template Markdown.",
     )
     parser.add_argument(
