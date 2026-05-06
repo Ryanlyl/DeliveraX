@@ -3195,6 +3195,30 @@ textarea.section-control {
   color: #fca5a5;
 }
 
+.checkpoint-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 14px 20px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 247, 237, 0.88), rgba(255, 251, 235, 0.92));
+}
+
+.checkpoint-alert strong {
+  color: #92400e;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.checkpoint-alert p {
+  margin: 0;
+  color: #a16207;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .checkpoint-panel {
   display: grid;
   gap: 18px;

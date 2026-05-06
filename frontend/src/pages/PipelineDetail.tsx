@@ -11,7 +11,26 @@ import type {
   PipelineRun,
   CurrentCheckpointResponse,
   ReviewAssetsResponse,
+  StageRecord,
 } from "../api/client";
+
+function getPreferredStageId(stages: StageRecord[]): string {
+  const active = stages.find(
+    (s) =>
+      s.status === "running" ||
+      s.status === "pending_approval" ||
+      s.status === "failed",
+  );
+  if (active) return active.id;
+
+  const lastSucceeded = [...stages].reverse().find((s) => s.status === "succeeded");
+  if (lastSucceeded) return lastSucceeded.id;
+
+  const firstAvailable = stages.find((s) => s.status !== "queued");
+  if (firstAvailable) return firstAvailable.id;
+
+  return stages[0]?.id ?? "";
+}
 
 export default function PipelineDetail() {
   const { pipelineId } = useParams<{ pipelineId: string }>();
@@ -30,6 +49,7 @@ export default function PipelineDetail() {
   const pollRef = useRef<number | null>(null);
   const durationRef = useRef<number | null>(null);
   const pipelineRef = useRef(pipeline);
+  const userSelectedStageRef = useRef(false);
 
   pipelineRef.current = pipeline;
 
@@ -91,7 +111,7 @@ export default function PipelineDetail() {
         if (cancelled) return;
         setPipeline(p);
         if (p.stages.length > 0) {
-          setSelectedStageId((prev) => prev || p.stages[0].id);
+          setSelectedStageId((prev) => prev || getPreferredStageId(p.stages));
         }
         if (runId) {
           const r = await Api.getRun(pipelineId!, runId);
@@ -185,13 +205,35 @@ export default function PipelineDetail() {
     )?.id ||
     "";
 
+  const pendingApprovalStageId =
+    pipeline?.stages.find((s) => s.status === "pending_approval")?.id ?? "";
+
   const selectedStage = pipeline?.stages.find((s) => s.id === selectedStageId);
 
   const handleSelectStage = (stageId: string) => {
     const stage = pipeline?.stages.find((s) => s.id === stageId);
     if (!stage || stage.status === "queued") return;
+    userSelectedStageRef.current = true;
     setSelectedStageId(stageId);
   };
+
+  // ── auto-follow active stage (unless user manually selected) ──
+
+  useEffect(() => {
+    if (!activeStageId) return;
+    if (userSelectedStageRef.current) return;
+
+    setSelectedStageId(activeStageId);
+  }, [activeStageId]);
+
+  // ── force-switch to pending approval stage ──
+
+  useEffect(() => {
+    if (!pendingApprovalStageId) return;
+
+    setSelectedStageId(pendingApprovalStageId);
+    userSelectedStageRef.current = false;
+  }, [pendingApprovalStageId]);
 
   // ── lifecycle actions ──
 
@@ -317,6 +359,14 @@ export default function PipelineDetail() {
         onResume={handleResume}
         onTerminate={handleTerminate}
       />
+
+      {pipeline.status === "pending_approval" && (
+        <div className="checkpoint-alert">
+          <strong>等待人工审核</strong>
+          <p>当前流程已暂停，请查看当前 stage 输出并选择"通过"或"拒绝"。</p>
+        </div>
+      )}
+
       {/* ── visual flow overview ── */}
       <PipelineCanvas
         stages={pipeline.stages}
@@ -335,28 +385,31 @@ export default function PipelineDetail() {
           />
         </aside>
         {selectedStage && (
-          <StageDetailPanel
-            stage={selectedStage}
-            reviewAssets={reviewAssets}
-            isLoadingAssets={loadingAssets}
-            onApprove={handleApprove}
-            onReject={handleReject}
-          />
+          <div>
+            <StageDetailPanel
+              stage={selectedStage}
+              reviewAssets={reviewAssets}
+              isLoadingAssets={loadingAssets}
+              onApprove={handleApprove}
+              onReject={handleReject}
+            />
+
+            {checkpoint?.checkpoint &&
+              checkpoint.checkpoint.status === "pending" &&
+              checkpoint.checkpoint.stage_id === selectedStage.id && (
+                <CheckpointPanel
+                  checkpoint={checkpoint}
+                  reviewAssets={reviewAssets}
+                  pipelineId={pipelineId!}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  isLoadingAssets={loadingAssets}
+                  onFetchReviewAssets={fetchReviewAssets}
+                />
+              )}
+          </div>
         )}
       </div>
-
-      {/* ── checkpoint banner (always visible when pending approval) ── */}
-      {checkpoint?.checkpoint && checkpoint.checkpoint.status === "pending" && (
-        <CheckpointPanel
-          checkpoint={checkpoint}
-          reviewAssets={reviewAssets}
-          pipelineId={pipelineId!}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          isLoadingAssets={loadingAssets}
-          onFetchReviewAssets={fetchReviewAssets}
-        />
-      )}
     </main>
   );
 }

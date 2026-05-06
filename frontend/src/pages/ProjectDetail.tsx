@@ -23,6 +23,8 @@ export default function ProjectDetail() {
       if (data.pipeline_ids.length > 0) {
         const all = await Api.listPipelines();
         setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
+      } else {
+        setPipelines([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Project not found");
@@ -31,9 +33,41 @@ export default function ProjectDetail() {
     }
   }, [projectId]);
 
+  const refreshProject = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await Api.getProject(projectId);
+      setProject(data);
+      if (data.pipeline_ids.length > 0) {
+        const all = await Api.listPipelines();
+        setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
+      } else {
+        setPipelines([]);
+      }
+    } catch {
+      // polling errors are silent
+    }
+  }, [projectId]);
+
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    if (!project) return;
+
+    const shouldPoll =
+      project.clone_status === "pending" || project.clone_status === "cloning";
+
+    if (!shouldPoll) return;
+
+    const timer = window.setInterval(() => {
+      refreshProject();
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [projectId, project?.clone_status, refreshProject]);
 
   const handleDelete = async () => {
     if (deleting || !projectId) return;
@@ -89,6 +123,24 @@ export default function ProjectDetail() {
     failed: "失败",
   };
 
+  const canCreatePipeline = project.clone_status === "ready" && Boolean(project.clone_path);
+
+  const createPipelineButtonText =
+    project.clone_status === "pending" || project.clone_status === "cloning"
+      ? "仓库克隆中..."
+      : project.clone_status === "failed"
+        ? "克隆失败，无法新建流程"
+        : !project.clone_path
+          ? "仓库路径缺失"
+          : "新建流程";
+
+  const handleCreatePipeline = () => {
+    if (!canCreatePipeline || !project.clone_path) return;
+    navigate(
+      `/dashboard?project_id=${project.id}&repo_path=${encodeURIComponent(project.clone_path)}`,
+    );
+  };
+
   return (
     <main className="project-detail-page">
       <div className="landing-grid-overlay" aria-hidden="true" />
@@ -135,15 +187,28 @@ export default function ProjectDetail() {
             <button
               className="landing-primary"
               type="button"
-              onClick={() => navigate(`/dashboard?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
+              disabled={!canCreatePipeline}
+              onClick={handleCreatePipeline}
             >
-              新建流程
+              {createPipelineButtonText}
             </button>
             <button className="button secondary danger" type="button" onClick={handleDelete} disabled={deleting}>
               {deleting ? "删除中..." : "删除项目"}
             </button>
           </div>
         </div>
+
+        {project.clone_status === "failed" && (
+          <div className="project-clone-warning" style={{ marginTop: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", color: "#b91c1c", fontSize: "14px" }}>
+            仓库克隆失败，请检查 GitHub URL 或后端 clone 日志。
+          </div>
+        )}
+
+        {project.clone_status === "ready" && !project.clone_path && (
+          <div className="project-clone-warning" style={{ marginTop: "16px", padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "8px", color: "#92400e", fontSize: "14px" }}>
+            仓库已标记为就绪，但 clone_path 为空，请检查后端项目接口。
+          </div>
+        )}
 
         <div className="project-pipelines">
           <h2>关联流程</h2>
@@ -153,10 +218,11 @@ export default function ProjectDetail() {
               <button
                 className="landing-primary"
                 type="button"
-                onClick={() => navigate(`/dashboard?project_id=${project.id}&repo_path=${encodeURIComponent(project.github_url)}`)}
+                disabled={!canCreatePipeline}
+                onClick={handleCreatePipeline}
                 style={{ marginTop: "12px" }}
               >
-                新建流程
+                {createPipelineButtonText}
               </button>
             </div>
           ) : (

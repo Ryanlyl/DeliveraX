@@ -266,6 +266,47 @@ class ApiError extends Error {
   }
 }
 
+function extractErrorMessage(detail: unknown, fallback: string): string {
+  if (!detail) return fallback;
+
+  if (typeof detail === "string") return detail;
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg?: unknown }).msg ?? "");
+        }
+        return "";
+      })
+      .filter(Boolean);
+
+    return messages.length > 0 ? messages.join("; ") : fallback;
+  }
+
+  if (typeof detail === "object") {
+    const obj = detail as Record<string, unknown>;
+
+    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.error === "string") return obj.error;
+
+    if (typeof obj.detail === "string") return obj.detail;
+
+    if (obj.detail && typeof obj.detail === "object") {
+      const nested = obj.detail as Record<string, unknown>;
+      if (typeof nested.message === "string") return nested.message;
+      if (typeof nested.error === "string") return nested.error;
+    }
+
+    if (Array.isArray(obj.detail)) {
+      return extractErrorMessage(obj.detail, fallback);
+    }
+  }
+
+  return fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
@@ -279,7 +320,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // ignore parse failures
     }
-    throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`, detail);
+    const fallback = `API ${res.status}: ${res.statusText}`;
+    throw new ApiError(res.status, extractErrorMessage(detail, fallback), detail);
   }
   return res.json() as Promise<T>;
 }
@@ -290,7 +332,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export async function healthCheck(): Promise<{ status: string }> {
   const res = await fetch("/health");
   if (!res.ok) {
-    throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`);
+    let detail: unknown;
+    try {
+      detail = await res.json();
+    } catch {
+      // ignore parse failures
+    }
+    const fallback = `API ${res.status}: ${res.statusText}`;
+    throw new ApiError(res.status, extractErrorMessage(detail, fallback), detail);
   }
   return res.json() as Promise<{ status: string }>;
 }
