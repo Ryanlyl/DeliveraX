@@ -192,19 +192,28 @@ def _clean_cell(value: str) -> str:
     return re.sub(r"<br\s*/?>", "\n", value.strip(), flags=re.IGNORECASE)
 
 
-def _normalize_change_files(change_files: list[ChangeFile]) -> list[ChangeFile]:
+def _normalize_change_files(change_files: list) -> list[ChangeFile]:
     normalized: list[ChangeFile] = []
     seen: set[str] = set()
     for item in change_files:
-        path = _clean_path(str(item.get("path", "")))
+        if isinstance(item, str):
+            path = _clean_path(item)
+            operation = "Modify"
+            description = ""
+        else:
+            # tolerate partially-typed payloads
+            item_dict = item if isinstance(item, dict) else {}
+            path = _clean_path(str(item_dict.get("path", "")))
+            operation = str(item_dict.get("operation", ""))
+            description = str(item_dict.get("description", "")).strip()
         if not path or path in seen:
             continue
         seen.add(path)
         normalized.append(
             {
                 "path": path,
-                "operation": _normalize_operation(str(item.get("operation", ""))),
-                "description": str(item.get("description", "")).strip(),
+                "operation": _normalize_operation(operation),
+                "description": description,
             }
         )
     return normalized

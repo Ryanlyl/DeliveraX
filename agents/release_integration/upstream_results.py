@@ -8,7 +8,15 @@ from .schemas import UpstreamResult
 
 
 PASSED_TEST_STATUSES = {"pass", "passed", "success", "succeeded", "ok", "green"}
-APPROVED_REVIEW_STATUSES = {"approve", "approved", "accepted", "pass", "passed", "ok"}
+APPROVED_REVIEW_STATUSES = {
+    "approve",
+    "approved",
+    "approved-with-notes",
+    "accepted",
+    "pass",
+    "passed",
+    "ok",
+}
 
 
 def load_test_result(*, result_path: str | None, explicit_status: str | None) -> UpstreamResult:
@@ -65,7 +73,7 @@ def _load_upstream_result(
 
 def _find_status(payload: Any) -> str | None:
     if isinstance(payload, dict):
-        for key in ("status", "conclusion", "result", "decision", "state"):
+        for key in ("status", "conclusion", "result", "decision", "state", "verdict"):
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()

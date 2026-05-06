@@ -9,7 +9,14 @@ import time
 from pathlib import Path
 from typing import Any, cast
 
-from .io_utils import read_json, read_text, write_json, write_text, resolve_path_maybe_relative
+from .io_utils import (
+    read_json,
+    read_text,
+    write_json,
+    write_text,
+    resolve_path_maybe_relative,
+    apply_unified_diff_to_repo,
+)
 from .prompts import (
     TEST_GEN_SYSTEM,
     TEST_PLAN_SYSTEM,
@@ -141,6 +148,7 @@ def resolve_inputs(state: CodeTestState) -> CodeTestState:
 def materialize_task_copy(state: CodeTestState) -> CodeTestState:
     if state.get("errors"):
         return state
+    warnings = list(state.get("warnings") or [])
     workspace_dir = Path(state["workspace_dir"])
     task_id = state["task_id"]
     dest = workspace_dir / "tasks" / task_id / "repo"
@@ -153,8 +161,20 @@ def materialize_task_copy(state: CodeTestState) -> CodeTestState:
     except RuntimeError as exc:
         state.setdefault("errors", []).append(str(exc))
         return state
+
+    diff_path = state.get("diff_path")
+    if diff_path:
+        try:
+            changed = apply_unified_diff_to_repo(diff_path=diff_path, repo_root=dest)
+            if changed:
+                warnings.append(f"Applied code changes diff to test repo: {', '.join(changed)}")
+        except Exception as exc:
+            state.setdefault("errors", []).append(f"Failed to apply diff before tests: {exc}")
+            return state
+
     state["task_repo_path"] = str(dest.resolve())
     state["task_workspace_dir"] = str(dest.parent)
+    state["warnings"] = warnings
     return state
 
 

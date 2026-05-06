@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,11 +31,24 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
     logs = ["CodeGen stage started"]
     try:
+        options = request.options
+        if not isinstance(options, dict):
+            # Defensive: tolerate unexpected option payload shapes from upstream integrations.
+            # Keep behavior permissive and let the stage run with empty/default options.
+            if isinstance(options, str):
+                try:
+                    parsed = json.loads(options)
+                    options = parsed if isinstance(parsed, dict) else {}
+                except Exception:
+                    options = {}
+            else:
+                options = {}
+
         repo_root = Path(__file__).resolve().parents[2]
         stage_dir = resolve_stage_artifact_dir(request)
         stage_dir.mkdir(parents=True, exist_ok=True)
 
-        design_path = request.options.get("design_path") or _first_artifact_path(
+        design_path = options.get("design_path") or _first_artifact_path(
             request, "technical_design", "human_output"
         )
         if not design_path:
@@ -42,16 +57,16 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         legacy_output_dir = stage_dir / "legacy_output"
         result_state = run_codegen(
             design_path=str(design_path),
-            repo_path=request.repo_path or request.options.get("repo_path"),
+            repo_path=request.repo_path or options.get("repo_path"),
             workspace_dir=str(
-                request.options.get("workspace_dir")
+                options.get("workspace_dir")
                 or repo_root / "agents" / "solution_design" / ".workspace"
             ),
             task_id=request.run_id,
             output_dir=str(legacy_output_dir),
-            local_only=bool(request.options.get("local_only", True)),
-            max_context_files=int(request.options.get("max_context_files", 32)),
-            max_file_chars=int(request.options.get("max_file_chars", 24000)),
+            local_only=bool(options.get("local_only", True)),
+            max_context_files=int(options.get("max_context_files", 32)),
+            max_file_chars=int(options.get("max_file_chars", 24000)),
         )
 
         report_path = Path(result_state["report_path"])
@@ -83,8 +98,14 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         return write_stage_artifacts(
             request=request,
             result=result,
-            input_payload={"design_path": str(design_path), "options": request.options},
+            input_payload={"design_path": str(design_path), "options": options},
         )
     except Exception as exc:
-        result = StageRunResult.from_exception(request=request, started_at=started_at, exc=exc, logs=logs)
+        tb = traceback.format_exc()
+        result = StageRunResult.from_exception(
+            request=request,
+            started_at=started_at,
+            exc=exc,
+            logs=[*logs, tb],
+        )
         return write_stage_artifacts(request=request, result=result)
