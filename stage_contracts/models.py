@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+import traceback
 
 
 StageStatus = Literal[
@@ -80,6 +81,7 @@ class StageRunResult(BaseModel):
             error=StageError(
                 code=exc.__class__.__name__,
                 message=str(exc),
+                details={"traceback": "".join(traceback.format_exception(exc))},
             ),
         )
 

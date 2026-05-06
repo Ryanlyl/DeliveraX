@@ -106,7 +106,12 @@ def apply_diff(*, repo_root: str | Path, diff_path: str | Path) -> dict[str, str
     diff = Path(diff_path).resolve()
     if not diff.exists():
         raise RuntimeError(f"Diff path does not exist: {diff}")
-    check = git_result(root, ["apply", "--check", "--whitespace=fix", str(diff)])
+    # CodeGen diffs may be produced with LF line endings while the working tree on Windows
+    # can contain CRLF. Allow applying the patch even when whitespace differs.
+    check = git_result(
+        root,
+        ["apply", "--check", "--whitespace=fix", "--ignore-space-change", "--ignore-whitespace", str(diff)],
+    )
     if check.returncode != 0:
         return {
             "check_passed": False,
@@ -114,9 +119,15 @@ def apply_diff(*, repo_root: str | Path, diff_path: str | Path) -> dict[str, str
             "check_output": _combined_output(check),
             "apply_output": "",
         }
-    applied = git_result(root, ["apply", "--whitespace=fix", str(diff)])
+    applied = git_result(
+        root,
+        ["apply", "--whitespace=fix", "--ignore-space-change", "--ignore-whitespace", str(diff)],
+    )
     if applied.returncode != 0:
-        three_way = git_result(root, ["apply", "--3way", "--whitespace=fix", str(diff)])
+        three_way = git_result(
+            root,
+            ["apply", "--3way", "--whitespace=fix", "--ignore-space-change", "--ignore-whitespace", str(diff)],
+        )
         return {
             "check_passed": True,
             "applied": three_way.returncode == 0,
@@ -218,7 +229,10 @@ def _copy_to_synthetic_git_repo(source: Path, repo: Path) -> None:
     shutil.copytree(
         source,
         repo,
-        ignore=shutil.ignore_patterns(".git", ".solution_design_fetch.json", "__pycache__"),
+        # node_modules can be enormous and may contain paths that exceed Windows
+        # filesystem limits or have transient/dangling entries; it's not needed
+        # for creating an integration commit from a diff.
+        ignore=shutil.ignore_patterns(".git", ".solution_design_fetch.json", "__pycache__", "node_modules"),
     )
     git(repo, ["init"])
     git(repo, ["add", "-A"])

@@ -20,7 +20,10 @@ def copy_task_repository(*, source_root: Path, dest_root: Path, force: bool) -> 
             raise RuntimeError(
                 f"Task workspace already exists: {dest_root}. Pass --force to replace."
             )
-        shutil.rmtree(dest_root)
+        shutil.rmtree(
+            dest_root,
+            onerror=lambda func, path, exc_info: _handle_rmtree_error(func, path, exc_info),
+        )
     dest_root.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(
         source_root,
@@ -35,3 +38,15 @@ def copy_task_repository(*, source_root: Path, dest_root: Path, force: bool) -> 
             "coverage",
         ),
     )
+
+
+def _handle_rmtree_error(func, path: str, exc_info) -> None:
+    # Windows: tolerate read-only files / locked git object files in previous worktrees.
+    import os
+    import stat
+
+    try:
+        os.chmod(path, stat.S_IWRITE)
+    except OSError:
+        pass
+    func(path)

@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+import os
 
 from stage_contracts import (
     ArtifactRef,
@@ -55,9 +56,29 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
 
         legacy_output_dir = stage_dir / "legacy_output"
         workspace_dir = Path(str(request.options.get("workspace_dir") or stage_dir / "workspace"))
-        local_only = bool(request.options.get("local_only", True))
+        # Default to running real tests when invoked by pipeline.
+        # Set options.local_only=true explicitly to skip execution.
+        local_only = bool(request.options.get("local_only", False))
         force = bool(request.options.get("force", True))
         max_llm_calls = _optional_int(request.options.get("max_llm_calls"))
+
+        # Optional: stage-level options to configure frontend autostart via env
+        env_overrides: dict[str, str] = {}
+        if "autostart_frontend" in request.options:
+            env_overrides["CODETEST_AUTOSTART_FRONTEND"] = "1" if bool(request.options.get("autostart_frontend")) else "0"
+        if request.options.get("frontend_host"):
+            env_overrides["CODETEST_FRONTEND_HOST"] = str(request.options.get("frontend_host"))
+        if request.options.get("frontend_port"):
+            env_overrides["CODETEST_FRONTEND_PORT"] = str(request.options.get("frontend_port"))
+        if request.options.get("frontend_start_timeout_seconds"):
+            env_overrides["CODETEST_FRONTEND_START_TIMEOUT_SECONDS"] = str(request.options.get("frontend_start_timeout_seconds"))
+        if request.options.get("frontend_warmup_seconds"):
+            env_overrides["CODETEST_FRONTEND_WARMUP_SECONDS"] = str(request.options.get("frontend_warmup_seconds"))
+
+        old_env: dict[str, str | None] = {}
+        for k, v in env_overrides.items():
+            old_env[k] = os.getenv(k)
+            os.environ[k] = v
 
         result_state = run_codetest(
             codegen_result_path=str(codegen_result_path) if codegen_result_path else None,
@@ -73,6 +94,11 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
             max_llm_calls=max_llm_calls,
             repair_feedback_path=str(repair_feedback_path) if repair_feedback_path else None,
         )
+        for k, prev in old_env.items():
+            if prev is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = prev
 
         report_path = Path(str(result_state.get("report_path", "")))
         human_output = report_path.read_text(encoding="utf-8") if report_path.is_file() else result_state.get("summary")

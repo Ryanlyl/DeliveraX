@@ -5,7 +5,9 @@ import os
 import re
 import shutil
 import subprocess
+import socket
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
@@ -90,7 +92,27 @@ def resolve_inputs(state: CodeTestState) -> CodeTestState:
         if not diff_path:
             diff_path = resolve_path_maybe_relative(str(data.get("diff_path")), base)
         if not repo_source:
-            repo_source = resolve_path_maybe_relative(str(data.get("codegen_repo_path")), base)
+            candidate = resolve_path_maybe_relative(str(data.get("codegen_repo_path")), base)
+            # CodeGen may point to an ephemeral workspace path that no longer exists.
+            # Fall back to the original source repo root if available.
+            candidate_path = Path(candidate).resolve() if candidate else None
+            workspace_root = Path(state.get("workspace_dir") or "").resolve() if state.get("workspace_dir") else None
+            is_ephemeral_workspace_repo = bool(
+                candidate_path
+                and workspace_root
+                and (candidate_path == workspace_root or workspace_root in candidate_path.parents)
+            )
+            if candidate_path and candidate_path.is_dir() and not is_ephemeral_workspace_repo:
+                repo_source = str(candidate_path)
+            else:
+                fallback = resolve_path_maybe_relative(str(data.get("source_repo_root")), base)
+                fallback_path = Path(fallback).resolve() if fallback else None
+                if fallback_path and fallback_path.is_dir():
+                    repo_source = str(fallback_path)
+                    reason = "ephemeral workspace repo" if is_ephemeral_workspace_repo else "codegen_repo_path not found"
+                    warnings.append(f"{reason}; falling back to source_repo_root: {fallback_path}")
+                else:
+                    repo_source = str(candidate_path) if candidate_path else candidate
 
     if not task_id or not str(task_id).strip():
         errors.append("task_id is required (via --task-id or codegen_result.json).")
@@ -153,6 +175,77 @@ def materialize_task_copy(state: CodeTestState) -> CodeTestState:
     except RuntimeError as exc:
         state.setdefault("errors", []).append(str(exc))
         return state
+    # Ensure the workspace reflects CodeGen changes even if we had to fall back to source_repo_root.
+    # `git apply` works without a .git directory (patches files directly).
+    diff_path = str(state.get("diff_path") or "").strip()
+    if diff_path and Path(diff_path).is_file():
+        try:
+            if not shutil.which("git"):
+                state.setdefault("warnings", []).append(
+                    "git not found on PATH; CodeTest workspace may not include CodeGen diff."
+                )
+                state["task_repo_path"] = str(dest.resolve())
+                state["task_workspace_dir"] = str(dest.parent)
+                return state
+
+            proc = subprocess.run(  # noqa: S603
+                _resolve_cmd(
+                    [
+                        "git",
+                        "apply",
+                        "--recount",
+                        "--ignore-space-change",
+                        "--ignore-whitespace",
+                        "--whitespace=nowarn",
+                        diff_path,
+                    ]
+                ),
+                cwd=str(dest),
+                text=True,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=60,
+                env=_subprocess_env({}),
+            )
+            if proc.returncode != 0:
+                # If the diff is already applied, `git apply --reverse --check` should succeed.
+                rev_check = subprocess.run(  # noqa: S603
+                    _resolve_cmd(
+                        [
+                            "git",
+                            "apply",
+                            "--reverse",
+                            "--check",
+                            "--ignore-space-change",
+                            "--ignore-whitespace",
+                            "--whitespace=nowarn",
+                            diff_path,
+                        ]
+                    ),
+                    cwd=str(dest),
+                    text=True,
+                    capture_output=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=30,
+                    env=_subprocess_env({}),
+                )
+                if rev_check.returncode == 0:
+                    state.setdefault("warnings", []).append(
+                        "CodeGen diff already applied in CodeTest workspace (skip)."
+                    )
+                else:
+                    state.setdefault("errors", []).append(
+                        "Failed to apply CodeGen diff in CodeTest workspace:\n"
+                        + (proc.stderr or proc.stdout or "").strip()
+                    )
+                    return state
+            else:
+                state.setdefault("warnings", []).append("Applied CodeGen diff to CodeTest workspace.")
+        except Exception as exc:
+            state.setdefault("errors", []).append(f"Failed to apply CodeGen diff: {exc}")
+            return state
     state["task_repo_path"] = str(dest.resolve())
     state["task_workspace_dir"] = str(dest.parent)
     return state
@@ -309,12 +402,25 @@ def generate_test_files(state: CodeTestState) -> CodeTestState:
         raise RuntimeError(f"Failed to parse test_generation JSON: {exc}") from exc
 
     repo_root = Path(state["task_repo_path"])
+    # Guardrail: in nodejs_sp repos, avoid clobbering existing runner configs.
+    # These repos already have their own package.json and often their own Playwright config.
+    protected_if_exists = {
+        "package.json",
+        "playwright.config.ts",
+        "playwright.config.mjs",
+        "playwright.config.js",
+    }
     for item in payload.get("files", []) or []:
         rel = str(item.get("path", "")).strip().replace("\\", "/")
         content = item.get("content")
         if not rel or content is None:
             continue
         target = safe_repo_path(repo_root, rel)
+        if state.get("repo_archetype") == "nodejs_sp":
+            rel_norm = rel.lstrip("./")
+            if rel_norm in protected_if_exists and target.is_file():
+                warnings.append(f"Skipped overwriting existing `{rel_norm}` in nodejs_sp repo.")
+                continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(str(content).rstrip() + "\n", encoding="utf-8")
         generated.append(rel)
@@ -506,6 +612,255 @@ def _test_timeout_seconds() -> float:
         return 600.0
 
 
+def _http_ok(url: str, *, timeout: float = 2.0) -> bool:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "DeliveraX-CodeTest"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            return 200 <= int(getattr(resp, "status", 200)) < 500
+    except Exception:
+        return False
+
+
+def _port_free(host: str, port: int) -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, int(port)))
+        return True
+    except OSError:
+        return False
+
+
+def _pick_port(host: str, preferred: int) -> int:
+    if _port_free(host, preferred):
+        return preferred
+    for p in range(preferred + 1, preferred + 100):
+        if _port_free(host, p):
+            return p
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        return int(s.getsockname()[1])
+
+
+def _parse_playwright_port(repo: Path) -> int | None:
+    """Best-effort parse of playwright.config.* for a fixed dev server port."""
+    cfg_candidates = [
+        repo / "playwright.config.ts",
+        repo / "playwright.config.mjs",
+        repo / "playwright.config.js",
+    ]
+    cfg = next((p for p in cfg_candidates if p.is_file()), None)
+    if not cfg:
+        return None
+    text = cfg.read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"--port\s+(\d{2,5})", text)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"http://127\.0\.0\.1:(\d{2,5})", text)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _kill_listeners_on_port(port: int, *, log_lines: list[str]) -> None:
+    """Windows-only: kill any LISTENING processes bound to :port."""
+    if os.name != "nt":
+        return
+    try:
+        out = subprocess.check_output(  # noqa: S603,S607
+            ["netstat", "-ano"],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except Exception as exc:
+        log_lines.append(f"Failed to run netstat for port cleanup: {exc}")
+        return
+    pids: set[int] = set()
+    for line in out.splitlines():
+        if f":{port} " not in line or "LISTENING" not in line:
+            continue
+        parts = re.split(r"\s+", line.strip())
+        if not parts:
+            continue
+        pid_s = parts[-1]
+        try:
+            pids.add(int(pid_s))
+        except ValueError:
+            continue
+    for pid in sorted(pids):
+        try:
+            subprocess.run(  # noqa: S603,S607
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+            )
+            log_lines.append(f"Killed existing listener on :{port} (pid={pid})")
+        except Exception as exc:
+            log_lines.append(f"Failed to kill pid={pid} on :{port}: {exc}")
+
+
+def _ensure_index_start_html(repo: Path, base_url: str, *, log_lines: list[str]) -> None:
+    target = repo / "index-START.html"
+    if target.is_file():
+        return
+    url = base_url.rstrip("/") + "/customers"
+    html = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content="0; url={url}" />
+    <title>Redirecting…</title>
+  </head>
+  <body>
+    Redirecting to <a href="{url}">{url}</a>…
+    <script>location.replace({json.dumps(url)});</script>
+  </body>
+</html>
+"""
+    try:
+        target.write_text(html, encoding="utf-8")
+        log_lines.append(f"Wrote {target.name} redirect to {url}")
+    except OSError as exc:
+        log_lines.append(f"Failed to write {target.name}: {exc}")
+
+
+def _kill_process_tree(pid: int, *, log_lines: list[str]) -> None:
+    if pid <= 0:
+        return
+    try:
+        if os.name == "nt":
+            subprocess.run(  # noqa: S603,S607
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+            )
+        else:
+            os.kill(pid, 15)
+    except Exception as exc:
+        log_lines.append(f"Failed to stop dev server pid={pid}: {exc}")
+
+
+def _maybe_start_frontend_dev_server(state: "CodeTestState", repo: Path, log_lines: list[str]) -> None:
+    if state.get("repo_archetype") != "nodejs_sp":
+        return
+    if not state.get("needs_e2e"):
+        return
+
+    enabled = os.getenv("CODETEST_AUTOSTART_FRONTEND", "1").strip().lower() not in {"0", "false", "no"}
+    if not enabled:
+        return
+
+    base_url = (os.getenv("CODETEST_FRONTEND_BASE_URL") or "").strip()
+    host = (os.getenv("CODETEST_FRONTEND_HOST") or "127.0.0.1").strip()
+    playwright_port = _parse_playwright_port(repo)
+    preferred_port = int((os.getenv("CODETEST_FRONTEND_PORT") or str(playwright_port or "5173")).strip())
+    port = preferred_port
+
+    if not base_url:
+        port = _pick_port(host, preferred_port)
+        base_url = f"http://{host}:{port}"
+
+    state["frontend_base_url"] = base_url
+
+    # If Playwright config expects a fixed port, clear stale listeners first.
+    if playwright_port and playwright_port == port:
+        _kill_listeners_on_port(port, log_lines=log_lines)
+
+    if _http_ok(base_url + "/", timeout=2.0):
+        log_lines.append(f"Frontend already reachable at {base_url} (skip autostart).")
+        _ensure_index_start_html(repo, base_url, log_lines=log_lines)
+        state["frontend_dev_server_started"] = False
+        return
+
+    # Choose an appropriate start command based on available scripts.
+    start_cmd: list[str] | None = None
+    pkg = repo / "package.json"
+    if pkg.is_file():
+        try:
+            pkg_data = json.loads(pkg.read_text(encoding="utf-8"))
+            scripts = (pkg_data.get("scripts") or {}) if isinstance(pkg_data, dict) else {}
+        except Exception:
+            scripts = {}
+    else:
+        scripts = {}
+
+    if "dev" in scripts:
+        start_cmd = ["npm", "run", "dev", "--", "--host", host, "--port", str(port)]
+    elif "start" in scripts:
+        start_cmd = ["npm", "run", "start", "--", "--host", host, "--port", str(port)]
+    elif "preview" in scripts:
+        start_cmd = ["npm", "run", "preview", "--", "--host", host, "--port", str(port)]
+    else:
+        # Last resort: try Vite directly (works for many React/Vite repos)
+        start_cmd = ["npx", "vite", "--host", host, "--port", str(port)]
+
+    cmd = _resolve_cmd(start_cmd)
+    log_lines.append(f"$ {' '.join(cmd)}  # autostart frontend")
+    try:
+        proc = subprocess.Popen(  # noqa: S603
+            cmd,
+            cwd=str(repo),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=_subprocess_env({"CI": "true"}),
+        )
+    except FileNotFoundError as exc:
+        log_lines.append(f"Failed to start frontend dev server: {exc}")
+        return
+
+    state["frontend_dev_server_started"] = True
+    state["frontend_dev_server_pid"] = int(proc.pid or 0)
+
+    timeout_s = float((os.getenv("CODETEST_FRONTEND_START_TIMEOUT_SECONDS") or "60").strip())
+    deadline = time.time() + max(5.0, timeout_s)
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            out = ""
+            try:
+                if proc.stdout:
+                    out = (proc.stdout.read() or "")[-2000:]
+            except Exception:
+                out = ""
+            log_lines.append(f"Frontend dev server exited early (code={proc.returncode}). Tail:\\n{out}")
+            return
+        if _http_ok(base_url + "/", timeout=2.0):
+            log_lines.append(f"Frontend dev server ready: {base_url}")
+            _ensure_index_start_html(repo, base_url, log_lines=log_lines)
+            # Warm up SPA route so early e2e waits are less flaky.
+            warmup_s = float((os.getenv("CODETEST_FRONTEND_WARMUP_SECONDS") or "30").strip())
+            warmup_deadline = time.time() + max(0.0, warmup_s)
+            last_err: str | None = None
+            while time.time() < warmup_deadline:
+                try:
+                    req = urllib.request.Request(base_url.rstrip("/") + "/customers", headers={"User-Agent": "DeliveraX-CodeTest"})
+                    with urllib.request.urlopen(req, timeout=2.0) as resp:  # noqa: S310
+                        code = int(getattr(resp, "status", 200))
+                        if 200 <= code < 500:
+                            log_lines.append(f"Warmup OK: GET /customers -> {code}")
+                            last_err = None
+                            break
+                        last_err = f"status={code}"
+                except Exception as exc:  # noqa: BLE001
+                    last_err = str(exc)
+                time.sleep(0.5)
+            if last_err:
+                log_lines.append(f"Warmup warning: GET /customers not ready within {warmup_s}s: {last_err}")
+            return
+        time.sleep(0.5)
+
+    log_lines.append(f"Frontend dev server not ready after {timeout_s}s: {base_url}")
+
+
 def _maybe_playwright_install(repo: Path, pm: list[str], log_lines: list[str]) -> None:
     pkg = repo / "package.json"
     if not pkg.is_file():
@@ -585,6 +940,7 @@ def run_tests(state: CodeTestState) -> CodeTestState:
         return state
 
     _maybe_playwright_install(repo, pm, log_lines)
+    _maybe_start_frontend_dev_server(state, repo, log_lines)
 
     pkg_data = json.loads(pkg.read_text(encoding="utf-8"))
     scripts = pkg_data.get("scripts") or {}
@@ -598,7 +954,7 @@ def run_tests(state: CodeTestState) -> CodeTestState:
         state["log_body"] = "\n".join(log_lines)
         return state
 
-    def run_cmd(cmd_list: list[str], label: str) -> tuple[int, int]:
+    def run_cmd(cmd_list: list[str], label: str, *, env_extra: dict[str, str] | None = None) -> tuple[int, int]:
         nonlocal duration_ms
         commands.append(" ".join(cmd_list))
         start = time.perf_counter()
@@ -611,7 +967,7 @@ def run_tests(state: CodeTestState) -> CodeTestState:
                 timeout=_test_timeout_seconds(),
                 encoding="utf-8",
                 errors="replace",
-                env=_subprocess_env({"CI": "true"}),
+                env=_subprocess_env(env_extra or {"CI": "true"}),
             )
             dur = int((time.perf_counter() - start) * 1000)
             duration_ms += dur
@@ -641,19 +997,29 @@ def run_tests(state: CodeTestState) -> CodeTestState:
 
     extra = ["--run"] if "vitest" in str(scripts.get("test", "")).lower() else []
     cmd = _resolve_cmd(base_test + extra if extra else base_test)
-    unit_rc, _ = run_cmd(cmd, "unit/component (npm test)")
-    if unit_rc != 0:
-        state["status"] = "failed"
-        state["summary"] = f"Tests failed (exit {unit_rc}). See log."
-        state["test_commands"] = commands
-        state["exit_code"] = unit_rc
-        state["duration_ms"] = duration_ms
-        state["stdout_tail"] = "\n".join(all_stdout)[-12000:]
-        state["stderr_tail"] = "\n".join(all_stderr)[-12000:]
-        state["case_results"] = []
-        state["warnings"] = warnings
-        state["log_body"] = "\n".join(log_lines)
-        return state
+    dev_pid = int(state.get("frontend_dev_server_pid") or 0)
+    started_by_us = bool(state.get("frontend_dev_server_started"))
+    try:
+        # If we started a dev server, don't force CI=true; Playwright config may rely on
+        # `reuseExistingServer: !process.env.CI` and would otherwise try to start a second server.
+        unit_env = {"CI": ""} if started_by_us else {"CI": "true"}
+        unit_rc, _ = run_cmd(cmd, "unit/component (npm test)", env_extra=unit_env)
+        if unit_rc != 0:
+            state["status"] = "failed"
+            state["summary"] = f"Tests failed (exit {unit_rc}). See log."
+            state["test_commands"] = commands
+            state["exit_code"] = unit_rc
+            state["duration_ms"] = duration_ms
+            state["stdout_tail"] = "\n".join(all_stdout)[-12000:]
+            state["stderr_tail"] = "\n".join(all_stderr)[-12000:]
+            state["case_results"] = []
+            state["warnings"] = warnings
+            state["log_body"] = "\n".join(log_lines)
+            return state
+    finally:
+        if started_by_us and dev_pid:
+            log_lines.append(f"Stopping frontend dev server pid={dev_pid}")
+            _kill_process_tree(dev_pid, log_lines=log_lines)
 
     exit_code = 0
     if state.get("needs_e2e"):
@@ -669,7 +1035,8 @@ def run_tests(state: CodeTestState) -> CodeTestState:
             e2e_cmd = ["npx", "playwright", "test"]
         if e2e_cmd:
             e2e_cmd = _resolve_cmd(e2e_cmd)
-            e2e_rc, _ = run_cmd(e2e_cmd, "e2e")
+            e2e_env = {"CI": ""} if started_by_us else {"CI": "true"}
+            e2e_rc, _ = run_cmd(e2e_cmd, "e2e", env_extra=e2e_env)
             exit_code = e2e_rc
 
     passed = exit_code == 0

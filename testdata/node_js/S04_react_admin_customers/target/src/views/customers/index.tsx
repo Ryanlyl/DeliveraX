@@ -68,10 +68,7 @@ const CustomersPage = () => {
     return customers.filter(customer => {
       if (filters.keyword) {
         const keyword = filters.keyword.toLowerCase()
-        const hit = [customer.name, customer.company, customer.email, customer.owner, customer.phone].some(
-          field => field?.toLowerCase().includes(keyword),
-        )
-        if (!hit) return false
+        if (!customer.name?.toLowerCase().includes(keyword)) return false
       }
       if (filters.status && filters.status.length > 0 && !filters.status.includes(customer.status)) {
         return false
@@ -214,10 +211,10 @@ const CustomersPage = () => {
             })
           }}
         >
-          <Form.Item name="keyword" label="Keywords">
+          <Form.Item name="keyword" label="Customer">
             <Input
               allowClear
-              placeholder="Search name/company/email/owner/phone"
+              placeholder="Search name"
               style={{ width: 260 }}
             />
           </Form.Item>

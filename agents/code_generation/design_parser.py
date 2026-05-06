@@ -196,15 +196,29 @@ def _normalize_change_files(change_files: list[ChangeFile]) -> list[ChangeFile]:
     normalized: list[ChangeFile] = []
     seen: set[str] = set()
     for item in change_files:
-        path = _clean_path(str(item.get("path", "")))
+        # SolDesign may output a simplified YAML list like:
+        #   change_files:
+        #     - src/foo.tsx
+        # When parsed by our lightweight YAML subset parser, list items become strings.
+        # Accept both mapping and scalar forms.
+        if isinstance(item, str):
+            raw_path = item
+            raw_operation = "Modify"
+            raw_description = ""
+        else:
+            raw_path = str(item.get("path", ""))
+            raw_operation = str(item.get("operation", ""))
+            raw_description = str(item.get("description", ""))
+
+        path = _clean_path(raw_path)
         if not path or path in seen:
             continue
         seen.add(path)
         normalized.append(
             {
                 "path": path,
-                "operation": _normalize_operation(str(item.get("operation", ""))),
-                "description": str(item.get("description", "")).strip(),
+                "operation": _normalize_operation(raw_operation),
+                "description": raw_description.strip(),
             }
         )
     return normalized

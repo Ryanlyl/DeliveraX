@@ -66,3 +66,8 @@ class CodeTestState(TypedDict, total=False):
     warnings: list[str]
     errors: list[str]
     extra: NotRequired[dict[str, Any]]
+
+    # optional: frontend autostart for nodejs_sp e2e
+    frontend_base_url: str
+    frontend_dev_server_started: bool
+    frontend_dev_server_pid: int

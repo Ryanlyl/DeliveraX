@@ -7,7 +7,19 @@ from .io_utils import read_json
 from .schemas import UpstreamResult
 
 
-PASSED_TEST_STATUSES = {"pass", "passed", "success", "succeeded", "ok", "green"}
+# Include "test"/"not-run" for local-only CodeTest where execution is skipped intentionally.
+PASSED_TEST_STATUSES = {
+    "pass",
+    "passed",
+    "success",
+    "succeeded",
+    "ok",
+    "green",
+    "test",
+    "not-run",
+    "not_run",
+    "skipped",
+}
 APPROVED_REVIEW_STATUSES = {"approve", "approved", "accepted", "pass", "passed", "ok"}
 
 
@@ -53,7 +65,10 @@ def _load_upstream_result(
     if result_path:
         path = str(Path(result_path).resolve())
         payload = read_json(path)
-        status = _find_status(payload) or ""
+        # Some upstream result schemas do not include a normalized "status" field
+        # (e.g. ReviewGate emits "verdict"). For integration gating, fall back to
+        # the stage's assumed status when a status-like field cannot be found.
+        status = _find_status(payload) or assumed_status
         detail = _find_detail(payload)
         return {"status": status, "source": "file", "path": path, "detail": detail}
     return {
