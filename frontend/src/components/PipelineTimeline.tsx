@@ -22,7 +22,7 @@ export default function PipelineTimeline({ stages, activeStageId, selectedStageI
             stage={stage}
             active={stage.id === activeStageId}
             selected={stage.id === selectedStageId}
-            disabled={stage.status === "waiting"}
+            disabled={stage.status === "queued"}
             isLast={index === stages.length - 1}
             onSelect={() => onSelectStage(stage.id)}
           />

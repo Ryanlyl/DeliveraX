@@ -20,11 +20,14 @@ const tabs: Array<{ id: DetailTab; label: string }> = [
 ];
 
 const statusLabel: Record<Stage["status"], string> = {
-  waiting: "待执行",
+  queued: "待执行",
   running: "AI 正在执行",
-  success: "已完成",
-  failed: "Failed",
-  pending_review: "等待人工审核",
+  succeeded: "已完成",
+  failed: "执行失败",
+  pending_approval: "等待人工审核",
+  rejected: "已拒绝",
+  cancelled: "已取消",
+  skipped: "已跳过",
 };
 
 function DiffBlock({ content }: { content: string }) {
@@ -915,22 +918,22 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
   );
   const [editingContext, setEditingContext] = useState(false);
   const [analysisState, setAnalysisState] = useState<"idle" | "running" | "done">("idle");
-  const isDesignStage = stage.id === "design";
+  const isDesignStage = stage.id === "solution";
   const isCodeStage = stage.id === "code";
   const hasRequirementChanges =
     editableRequirement !== stage.input || supplementText.trim().length > 0 || businessContext !== businessContextDraft || analysisState === "done";
   const isCodeOutput = stage.id === "code" && activeTab === "document";
-  const isRequirementOutput = stage.id === "requirement" && activeTab === "document";
-  const isRequirementInput = stage.id === "requirement" && activeTab === "input";
+  const isRequirementOutput = stage.id === "requirements" && activeTab === "document";
+  const isRequirementInput = stage.id === "requirements" && activeTab === "input";
   const displayStatus =
-    stage.status === "pending_review"
-      ? stage.id === "requirement"
+    stage.status === "pending_approval"
+      ? stage.id === "requirements"
         ? "AI 已完成需求结构化，请确认是否进入下一阶段"
         : "AI 已完成当前阶段产物，请确认是否继续推进"
       : statusLabel[stage.status];
 
   useEffect(() => {
-    if (stage.id === "design") {
+    if (stage.id === "solution") {
       setActiveTab("document");
     }
     setEditableRequirement(stage.input);
@@ -968,7 +971,7 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
       <div className="detail-header">
         <div>
           <span className="eyebrow">AI 执行结果</span>
-          <h2>{stage.id === "design" ? "技术方案设计" : stage.name}</h2>
+          <h2>{stage.id === "solution" ? "技术方案设计" : stage.name}</h2>
         </div>
         <span className={`status-pill ${stage.status}`}>{displayStatus}</span>
       </div>
@@ -1154,7 +1157,7 @@ export default function StageDetailPanel({ stage, model, viewingHistory = false,
         )}
       </div>
 
-      {stage.status === "pending_review" && (
+      {stage.status === "pending_approval" && (
         <CheckpointPanel
           title={stage.checkpointLabel ?? "Awaiting Human Approval"}
           description={stage.checkpointDescription ?? "AI Agent 已完成当前阶段产物，请人工确认是否继续推进 Pipeline。"}

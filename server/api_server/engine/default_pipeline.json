@@ -9,7 +9,7 @@
       "role": "requirements analyst",
       "system_prompt": "You are ReqAnalysis.",
       "accepted_input_artifact_types": ["text", "markdown"],
-      "output_artifact_contract": {"artifacts": ["requirement_spec", "requirement_prd"]},
+      "output_artifact_contract": { "artifacts": ["requirement_spec", "requirement_prd"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -20,7 +20,7 @@
       "role": "solution architect",
       "system_prompt": "You are SolDesign.",
       "accepted_input_artifact_types": ["json", "markdown"],
-      "output_artifact_contract": {"artifacts": ["technical_design"]},
+      "output_artifact_contract": { "artifacts": ["technical_design"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -31,7 +31,7 @@
       "role": "code generator",
       "system_prompt": "You are CodeGen.",
       "accepted_input_artifact_types": ["json", "markdown"],
-      "output_artifact_contract": {"artifacts": ["code_changeset"]},
+      "output_artifact_contract": { "artifacts": ["code_changeset"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -42,7 +42,7 @@
       "role": "test engineer",
       "system_prompt": "You are CodeTest.",
       "accepted_input_artifact_types": ["json", "markdown"],
-      "output_artifact_contract": {"artifacts": ["test_report"]},
+      "output_artifact_contract": { "artifacts": ["test_report"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -53,7 +53,7 @@
       "role": "code reviewer",
       "system_prompt": "You are ReviewGate.",
       "accepted_input_artifact_types": ["json", "markdown"],
-      "output_artifact_contract": {"artifacts": ["review_report"]},
+      "output_artifact_contract": { "artifacts": ["review_report"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -64,7 +64,7 @@
       "role": "release integrator",
       "system_prompt": "You are Integration.",
       "accepted_input_artifact_types": ["json", "markdown"],
-      "output_artifact_contract": {"artifacts": ["delivery_summary"]},
+      "output_artifact_contract": { "artifacts": ["delivery_summary"] },
       "context_paths": [],
       "default_provider": null,
       "default_model": null
@@ -80,7 +80,7 @@
       "checkpoint": true,
       "checkpoint_label": "需求确认 / Requirement Review",
       "checkpoint_description": "AI 已生成结构化需求文档，请确认需求范围、验收标准与待确认问题是否准确。",
-      "description": "自然语言需求转结构化需求与 PRD。"
+      "description": "将自然语言需求转换为结构化需求与 PRD。"
     },
     {
       "id": "solution",

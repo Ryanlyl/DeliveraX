@@ -1363,13 +1363,15 @@ button {
 }
 
 .status-pill.waiting-for-review,
-.status-pill.pending_review {
+.status-pill.pending_review,
+.status-pill.pending_approval {
   color: #b45309;
   background: rgba(245, 158, 11, 0.12);
 }
 
 .status-pill.completed,
-.status-pill.success {
+.status-pill.success,
+.status-pill.succeeded {
   color: #047857;
   background: rgba(16, 185, 129, 0.12);
 }
@@ -1500,7 +1502,8 @@ button {
   animation: pulse 1.1s ease-in-out infinite;
 }
 
-.stage-node.success {
+.stage-node.success,
+.stage-node.succeeded {
   border-color: var(--success);
   background: var(--success);
 }
@@ -1510,13 +1513,15 @@ button {
   background: #ef4444;
 }
 
-.stage-node.pending_review {
+.stage-node.pending_review,
+.stage-node.pending_approval {
   border-color: var(--warning);
   background: var(--warning);
   box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.16);
 }
 
-.stage-card.checkpoint .stage-node.waiting {
+.stage-card.checkpoint .stage-node.waiting,
+.stage-card.checkpoint .stage-node.queued {
   border-color: var(--warning);
   background: rgba(255, 247, 237, 0.78);
 }
@@ -1567,7 +1572,8 @@ button {
   color: var(--running);
 }
 
-.mini-status.success {
+.mini-status.success,
+.mini-status.succeeded {
   color: var(--success);
 }
 
@@ -1575,7 +1581,8 @@ button {
   color: #dc2626;
 }
 
-.mini-status.pending_review {
+.mini-status.pending_review,
+.mini-status.pending_approval {
   color: #b45309;
 }
 
