@@ -67,6 +67,7 @@ export interface PipelineRecord {
   id: string;
   name: string;
   status: PipelineStatus;
+  project_id?: string | null;
   provider: string;
   model?: string | null;
   temperature?: number | null;
@@ -215,6 +216,7 @@ export interface PipelineCreateRequest {
   name?: string;
   requirement: string;
   pipeline_id?: string | null;
+  project_id?: string | null;
   provider?: string;
   model?: string | null;
   temperature?: number | null;
@@ -388,8 +390,9 @@ export function createPipeline(req: PipelineCreateRequest): Promise<PipelineReco
   });
 }
 
-export function listPipelines(): Promise<PipelineRecord[]> {
-  return request<PipelineRecord[]>("/pipelines");
+export function listPipelines(projectId?: string | null): Promise<PipelineRecord[]> {
+  const params = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+  return request<PipelineRecord[]>(`/pipelines${params}`);
 }
 
 export function getPipeline(id: string): Promise<PipelineRecord> {

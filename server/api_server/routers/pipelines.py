@@ -6,6 +6,7 @@ from api_server.routers.stages import stage_error_to_http
 from api_server.engine.models import PipelineRun
 from api_server.schemas import ApprovalRequest, PipelineCreateRequest, PipelineRecord, PipelineRunInput, StageRunInput
 from api_server.storage.json_store import PipelineNotFoundError
+from api_server.storage.projects import ProjectNotFoundError
 
 router = APIRouter(prefix="/pipelines", tags=["pipelines"])
 
@@ -22,7 +23,20 @@ router = APIRouter(prefix="/pipelines", tags=["pipelines"])
     },
 )
 def create_pipeline(payload: PipelineCreateRequest, request: Request) -> PipelineRecord:
-    return request.app.state.pipeline_service.create(payload)
+    project = None
+    if payload.project_id:
+        try:
+            project = request.app.state.project_store.get(payload.project_id)
+        except ProjectNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=f"Project not found: {payload.project_id}") from exc
+
+    pipeline = request.app.state.pipeline_service.create(payload)
+
+    if project is not None and pipeline.id not in project.pipeline_ids:
+        project.pipeline_ids.append(pipeline.id)
+        request.app.state.project_store.save(project)
+
+    return pipeline
 
 
 @router.get(
@@ -32,8 +46,22 @@ def create_pipeline(payload: PipelineCreateRequest, request: Request) -> Pipelin
     description="返回所有已创建的 Pipeline 列表，按创建时间排序。",
     response_description="Pipeline 记录数组。",
 )
-def list_pipelines(request: Request) -> list[PipelineRecord]:
-    return request.app.state.pipeline_service.list()
+def list_pipelines(request: Request, project_id: str | None = None) -> list[PipelineRecord]:
+    pipelines = request.app.state.pipeline_service.list()
+    if not project_id:
+        return pipelines
+
+    try:
+        project = request.app.state.project_store.get(project_id)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}") from exc
+
+    linked_pipeline_ids = set(project.pipeline_ids)
+    return [
+        pipeline
+        for pipeline in pipelines
+        if pipeline.project_id == project_id or pipeline.id in linked_pipeline_ids
+    ]
 
 
 @router.get(

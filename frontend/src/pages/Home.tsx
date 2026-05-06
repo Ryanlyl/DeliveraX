@@ -14,19 +14,20 @@ export default function Home() {
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const projectId = searchParams.get("project_id");
 
   const fetchPipelines = useCallback(async () => {
     setLoadingPipelines(true);
     setPipelineError(null);
     try {
-      const list = await Api.listPipelines();
+      const list = await Api.listPipelines(projectId);
       setPipelines(list);
     } catch (e) {
       setPipelineError(e instanceof Error ? e.message : "Failed to load pipelines");
     } finally {
       setLoadingPipelines(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     fetchPipelines();

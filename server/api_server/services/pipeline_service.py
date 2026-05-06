@@ -55,6 +55,7 @@ class PipelineService:
         pipeline = PipelineRecord(
             id=pipeline_id,
             name=request.name,
+            project_id=request.project_id,
             provider=request.provider,
             model=request.model,
             temperature=request.temperature,

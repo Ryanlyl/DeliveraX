@@ -69,6 +69,7 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
     try {
       const pipeline = await Api.createPipeline({
         requirement: value.trim(),
+        project_id: projectContext?.project_id || undefined,
         provider: selection.providerId || undefined,
         model: selection.modelId || undefined,
         repo_path: projectContext?.repo_path || undefined,

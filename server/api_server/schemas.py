@@ -91,6 +91,7 @@ class PipelineCreateRequest(BaseModel):
     name: str = "AI DevFlow Pipeline"
     requirement: str
     pipeline_id: str | None = None
+    project_id: str | None = None
     provider: str = "local"
     model: str | None = None
     temperature: float | None = None
@@ -187,6 +188,7 @@ class PipelineRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     name: str
     status: PipelineStatus = "queued"
+    project_id: str | None = None
     provider: str = "local"
     model: str | None = None
     temperature: float | None = None

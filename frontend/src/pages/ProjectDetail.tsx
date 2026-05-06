@@ -20,12 +20,8 @@ export default function ProjectDetail() {
     try {
       const data = await Api.getProject(projectId);
       setProject(data);
-      if (data.pipeline_ids.length > 0) {
-        const all = await Api.listPipelines();
-        setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
-      } else {
-        setPipelines([]);
-      }
+      const related = await Api.listPipelines(data.id);
+      setPipelines(related);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Project not found");
     } finally {
@@ -38,12 +34,8 @@ export default function ProjectDetail() {
     try {
       const data = await Api.getProject(projectId);
       setProject(data);
-      if (data.pipeline_ids.length > 0) {
-        const all = await Api.listPipelines();
-        setPipelines(all.filter((p) => data.pipeline_ids.includes(p.id)));
-      } else {
-        setPipelines([]);
-      }
+      const related = await Api.listPipelines(data.id);
+      setPipelines(related);
     } catch {
       // polling errors are silent
     }
