@@ -1,0 +1,11 @@
+CTA 文案调整
+我们想调整一下首页 Hero 区域的按钮文案。
+现在的：
+“Register Now”
+改成：
+“Apply for Early Access”
+另外第二个按钮：
+“Watch Preview”
+改成：
+“View Event Trailer”
+顺便把主按钮视觉再突出一点，现在有点不够明显。

@@ -1,0 +1,10 @@
+Sponsor 分级重构
+我们最近新增了几个重量级赞助商，现在官网里的 Sponsor 区域有点太简单了，所有 Logo 平铺在一起，重点不够突出。
+帮我把 Sponsor 部分重新设计一下，按照不同等级分组展示：
+- Platinum Sponsors
+- Gold Sponsors
+- Community Partners
+Platinum Sponsor 需要更突出一些，可以用更大的卡片、边框或者发光效果体现高级感。
+Gold Sponsor 用中等大小展示，Community Partners 保持简洁 Logo 样式即可。
+另外，希望整体视觉更有层次感，不只是简单排列 Logo。可以增加 hover 动效，并且点击 Sponsor Logo 后能跳转到对应官网。
+注意保持现在整体的深色科技风格，同时移动端也需要适配自然。

@@ -1,0 +1,12 @@
+2. Agenda 改成 Tabs + Filter
+现在的 Agenda 页面信息太长了，用户很难快速找到自己感兴趣的内容。
+希望帮我们优化一下日程模块：
+目前是一个完整的长时间轴，想改成支持 Day 1 / Day 2 / Day 3 的 Tabs 切换形式。
+另外，会议现在已经分成多个方向了，希望增加一个 Track Filter，可以按不同主题筛选 Session，比如：
+- AI Engineering
+- Cloud Native
+- DevTools
+- Security
+- Open Source
+用户切换不同 Track 后，只显示对应的议程内容。
+整体希望交互更清晰一些，避免用户在长页面里来回滚动。视觉上保持现在的科技感和统一风格，移动端也需要体验自然。
