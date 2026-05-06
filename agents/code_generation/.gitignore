@@ -1,0 +1,19 @@
+# Generated CodeGen artifacts
+Output/*
+!Output/.gitkeep
+.workspace/
+
+# Runtime caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment and logs
+.env
+.env.*
+*.log
+*.tmp
+*.bak

@@ -1,0 +1,25 @@
+﻿# r0 需求（开源静态站点用例）
+
+- 用例ID：OSS01_startbootstrap_resume
+- 场景类型：static_html（纯静态站点）
+- 目标：在不破坏页面布局与样式的前提下，按指定信息更新首屏个人信息；并确保页面可正常打开与渲染
+
+## 需求：更新首屏个人信息（文字内容要真实修改）
+- [ ] 姓名更新为：`Jordan Li`
+- [ ] 住址更新为：`812 Market Street · San Mateo, CA 94401`
+- [ ] 邮编更新为：`94401`
+- [ ] 邮箱更新为：`jordan.li@harbor-mail.com`
+
+## 验收标准
+- [ ] 使用 Playwright 打开首页（baseURL + /index.html）可成功加载（HTTP 200）
+- [ ] 页面应存在 <title> 且非空
+- [ ] 页面首屏应至少出现 1 个可见的 h1 或 .masthead/header 等主视觉区域（允许不同模板差异）
+- [ ] 首屏可见姓名 `Jordan Li`
+- [ ] 首屏可见住址 `812 Market Street · San Mateo, CA 94401`
+- [ ] 首屏可见邮编 `94401`
+- [ ] 首屏邮箱链接（mailto）指向 `jordan.li@harbor-mail.com`
+- [ ] 控制台不应出现 Uncaught 级别错误（warning 可忽略）
+
+## 备注
+- 来源：https://github.com/StartBootstrap/startbootstrap-resume
+- 许可证：MIT（见同目录 LICENSE）

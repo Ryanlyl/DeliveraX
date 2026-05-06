@@ -70,7 +70,7 @@ button {
 .landing-page {
   position: relative;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   color: var(--text-primary);
   background:
     radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.06), transparent 40%),
@@ -4843,6 +4843,9 @@ body,
 
 /* Product-grade visual finishing */
 .landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   border: 1px solid rgba(15, 23, 42, 0.05);
   border-bottom-color: rgba(0, 0, 0, 0.05);
   background: rgba(255, 255, 255, 0.6);

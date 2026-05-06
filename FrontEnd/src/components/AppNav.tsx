@@ -1,8 +1,9 @@
+import type { MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 type Props = {
   active?: "home" | "start";
-  onFeaturesClick?: () => void;
+  onFeaturesClick?: (e: MouseEvent) => void;
 };
 
 export default function AppNav({ active = "home", onFeaturesClick }: Props) {
@@ -23,7 +24,7 @@ export default function AppNav({ active = "home", onFeaturesClick }: Props) {
         <Link className={active === "home" ? "active" : ""} to="/">
           工作台
         </Link>
-        <Link to="/#features" onClick={onFeaturesClick}>
+        <Link to="/#features" onClick={(e) => onFeaturesClick?.(e)}>
           产品能力
         </Link>
         <Link to="/pipeline/demo-001?model=GPT-4">流程演示</Link>

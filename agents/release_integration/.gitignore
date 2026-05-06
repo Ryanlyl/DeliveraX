@@ -1,0 +1,13 @@
+.workspace/
+Output/*
+!Output/.gitkeep
+Input/*
+!Input/.gitkeep
+!Input/reviewed_changeset.example.json
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.log
+.env
+.env.*

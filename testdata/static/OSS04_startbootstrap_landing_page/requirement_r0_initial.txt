@@ -1,0 +1,20 @@
+﻿# r0 需求（开源静态站点用例）
+
+- 用例ID：OSS04_startbootstrap_landing_page
+- 场景类型：static_html（纯静态站点）
+- 目标：在不破坏页面布局与样式的前提下，修改表单提交成功后的提示链接文字为 DeliveraX，并确保页面可正常打开与渲染
+
+## 需求：提交成功后的链接文案改为 DeliveraX
+- [ ] 在首屏表单提交成功后出现的提示区域中，将原本显示的链接文案替换为：`DeliveraX`
+- [ ] 链接仍需可点击（跳转地址可保持不变）
+
+## 验收标准
+- [ ] 使用 Playwright 打开首页（baseURL + /index.html）可成功加载（HTTP 200）
+- [ ] 页面应存在 <title> 且非空
+- [ ] 页面首屏应至少出现 1 个可见的 h1 或 .masthead/header 等主视觉区域（允许不同模板差异）
+- [ ] 模拟表单提交成功后，可见链接文案 `DeliveraX`
+- [ ] 控制台不应出现 Uncaught 级别错误（warning 可忽略）
+
+## 备注
+- 来源：https://github.com/StartBootstrap/startbootstrap-landing-page
+- 许可证：MIT（见同目录 LICENSE）

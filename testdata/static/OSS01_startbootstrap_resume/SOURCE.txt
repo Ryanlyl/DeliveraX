@@ -1,0 +1,3 @@
+﻿Source: https://github.com/StartBootstrap/startbootstrap-resume
+License: MIT (see LICENSE)
+Packaging: copied repo/dist into target/ for no-build testing

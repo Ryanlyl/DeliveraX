@@ -1,0 +1,1 @@
+"""ReviewGate stage adapter package."""
