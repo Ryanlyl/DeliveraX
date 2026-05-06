@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Background */
   --bg-page: #eef4fb;
@@ -960,50 +964,6 @@ button {
   margin: 0 auto;
 }
 
-.home-page {
-  position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  padding-bottom: 44px;
-  background:
-    radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.06), transparent 40%),
-    radial-gradient(circle at 15% 85%, rgba(14, 165, 233, 0.05), transparent 45%),
-    linear-gradient(135deg, var(--bg-page) 0%, var(--bg-page-soft) 45%, var(--bg-page-blue) 100%);
-}
-
-.home-grid-overlay {
-  position: absolute;
-  inset: 0;
-  opacity: 0.08;
-  background-image: radial-gradient(circle, rgba(59, 130, 246, 0.14) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 20%, #000 72%, transparent 100%);
-  pointer-events: none;
-}
-
-.home-glow {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(40px);
-  opacity: 0.14;
-  pointer-events: none;
-}
-
-.home-glow-right {
-  width: 360px;
-  height: 360px;
-  right: -120px;
-  top: 8%;
-  background: rgba(14, 165, 233, 0.1);
-}
-
-.home-glow-left {
-  width: 280px;
-  height: 280px;
-  left: -90px;
-  bottom: 10%;
-  background: rgba(59, 130, 246, 0.1);
-}
 
 .top-nav {
   height: 64px;
@@ -3412,10 +3372,6 @@ textarea.section-control {
 }
 
 @media (max-width: 980px) {
-  .home-page {
-    overflow: auto;
-  }
-
   .landing-page {
     overflow: auto;
   }
@@ -3750,7 +3706,6 @@ textarea.section-control {
 }
 
 body,
-.home-page,
 .landing-page,
 .pipeline-page {
   background:
@@ -3759,9 +3714,7 @@ body,
 }
 
 .landing-glow,
-.home-glow,
 .landing-grid-overlay,
-.home-grid-overlay,
 .landing-preview-shadow-card {
   display: none;
 }
