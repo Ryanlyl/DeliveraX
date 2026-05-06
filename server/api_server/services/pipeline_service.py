@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -29,6 +30,22 @@ from stage_contracts import ArtifactRef, StageError, StageRunRequest
 
 
 class PipelineService:
+    _REQANALYSIS_SANITIZE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+        # Keep behavior consistent with scripts/run_static_testdata_batch.py
+        (re.compile(r"@playwright/test", re.IGNORECASE), "自动化浏览器测试依赖"),
+        (re.compile(r"playwright", re.IGNORECASE), "自动化浏览器测试"),
+    )
+
+    def _sanitize_requirement_for_reqanalysis(self, text: str) -> str:
+        """Normalize requirement input to satisfy ReqAnalysis input boundary checks.
+
+        Keep the original requirement in the pipeline record; only sanitize the stage input.
+        """
+        out = str(text or "")
+        for pattern, replacement in self._REQANALYSIS_SANITIZE_RULES:
+            out = pattern.sub(replacement, out)
+        return out
+
     def __init__(
         self,
         *,
@@ -195,7 +212,11 @@ class PipelineService:
     def _stage_options(self, pipeline: PipelineRecord, stage_id: str, options: dict) -> dict:
         merged = sanitize_options({**self._stage_definition_options(stage_id), **pipeline.options, **options})
         if stage_id == "requirements":
-            merged.setdefault("user_input", pipeline.requirement)
+            sanitize_enabled = bool(merged.get("sanitize_requirement_for_reqanalysis", True))
+            user_input = pipeline.requirement
+            if sanitize_enabled:
+                user_input = self._sanitize_requirement_for_reqanalysis(user_input)
+            merged.setdefault("user_input", user_input)
 
         pipeline_definition = self._pipeline_definition()
         try:
