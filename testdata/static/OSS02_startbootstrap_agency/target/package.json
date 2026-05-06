@@ -1,0 +1,11 @@
+﻿{
+    "private":  true,
+    "devDependencies":  {
+                            "@playwright/test":  "^1.59.1"
+                        },
+    "name":  "oss02_startbootstrap_agency",
+    "version":  "0.0.0",
+    "scripts":  {
+                    "test":  "playwright test"
+                }
+}

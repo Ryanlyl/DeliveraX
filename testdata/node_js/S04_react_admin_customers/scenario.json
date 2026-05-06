@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "id": "S04_react_admin_customers",
+  "title_zh": "React 管理台：Customers 模块关键字检索与筛选体验",
+  "tier": "nodejs_sp",
+  "target_repo": "target",
+  "recording_hint_zh": "真实 React+Vite+Ant Design 工程形态；靶场固定为 Customers 列表；首轮为关键字未覆盖邮箱与负责人等字段；改进轮强调 Search 主按钮层级、窄屏筛选区可读可点、Reset 清空表单与列表一致。首次请在 target 内执行 npm install。",
+  "runs": [
+    {
+      "run_id": "r0_initial",
+      "suggested_pipeline_prefix": "sc04_r0",
+      "requirement_path": "requirement_r0_initial.txt",
+      "intent_zh": "首轮：Keyword 覆盖名称/公司/邮箱/负责人"
+    },
+    {
+      "run_id": "r1_improvement",
+      "suggested_pipeline_prefix": "sc04_r1",
+      "requirement_path": "requirement_r1_improvement.txt",
+      "intent_zh": "改进：筛选区主操作层级、窄屏、Reset 一致性"
+    }
+  ]
+}

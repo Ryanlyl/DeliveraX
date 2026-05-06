@@ -1,0 +1,20 @@
+﻿# r0 需求（开源静态站点用例）
+
+- 用例ID：OSS03_startbootstrap_freelancer
+- 场景类型：static_html（纯静态站点）
+- 目标：将页面里原本的“绿色背景”主题改为“蓝色背景”主题，并确保页面可正常打开与渲染
+
+## 需求：将绿色背景换成蓝色
+- [ ] 页面中所有原本呈现为“主绿色背景”的区域（例如首屏大块背景、主要按钮背景等）需要改为“主蓝色背景”
+- [ ] 蓝色需要明显（录屏可见），且与白色文字对比清晰
+
+## 验收标准
+- [ ] 使用 Playwright 打开首页（baseURL + /index.html）可成功加载（HTTP 200）
+- [ ] 页面应存在 <title> 且非空
+- [ ] 页面首屏应至少出现 1 个可见的 h1 或 .masthead/header 等主视觉区域（允许不同模板差异）
+- [ ] 首屏大块背景不再是绿色，而是蓝色
+- [ ] 控制台不应出现 Uncaught 级别错误（warning 可忽略）
+
+## 备注
+- 来源：https://github.com/StartBootstrap/startbootstrap-freelancer
+- 许可证：MIT（见同目录 LICENSE）

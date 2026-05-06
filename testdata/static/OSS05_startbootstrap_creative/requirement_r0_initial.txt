@@ -1,0 +1,29 @@
+﻿# r0 需求（开源静态站点用例）
+
+- 用例ID：OSS05_startbootstrap_creative
+- 场景类型：static_html（纯静态站点）
+- 目标：在页面顶部新增一个 `Keywords` 搜索框，可在页面内搜索关键词并高亮/定位结果；并确保页面可正常打开与渲染
+
+## 需求：顶部 Keywords 搜索框（页面内搜索）
+- [ ] 在页面顶部导航区域（或其下方的首屏区域顶部）新增一个搜索输入框
+  - label 文本固定为：`Keywords`
+  - placeholder 固定为：`Search in page...`
+- [ ] 输入关键词后按回车或点击搜索按钮（按钮文本固定为：`Search`），在当前页面内容中进行搜索
+- [ ] 搜索结果需要“明显可见”，满足以下至少两项：
+  - 将匹配到的文字高亮（例如黄色底色）
+  - 在搜索框下方显示结果数量（例如：`Found 3 matches`）
+  - 提供上下一个按钮（`Prev`/`Next`）可跳转到下一个匹配位置（滚动定位）
+- [ ] 当关键词为空时，点击搜索应清除高亮与结果提示
+
+## 验收标准
+- [ ] 页面可正常打开并渲染（无白屏）
+- [ ] 顶部可见 `Keywords` 搜索框与 `Search` 按钮
+- [ ] 搜索一个页面中确实存在的词（例如页面导航里 `About` 或 `Services`），能看到明显的高亮/结果提示
+- [ ] 使用 Playwright 打开首页（baseURL + /index.html）可成功加载（HTTP 200）
+- [ ] 页面应存在 <title> 且非空
+- [ ] 页面首屏应至少出现 1 个可见的 h1 或 .masthead/header 等主视觉区域（允许不同模板差异）
+- [ ] 控制台不应出现 Uncaught 级别错误（warning 可忽略）
+
+## 备注
+- 来源：https://github.com/StartBootstrap/startbootstrap-creative
+- 许可证：MIT（见同目录 LICENSE）

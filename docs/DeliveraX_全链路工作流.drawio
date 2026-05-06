@@ -1,0 +1,386 @@
+<mxfile host="app.diagrams.net" modified="2026-05-03T12:00:00.000Z" agent="Cursor" version="22.1.0" type="device">
+  <diagram id="d-overview" name="00-总览（六阶段 I/O）">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="ov0" />
+        <mxCell id="ov1" parent="ov0" />
+        <mxCell id="ov-title" value="&lt;b style=&quot;font-size:16px&quot;&gt;DeliveraX：需求分析 → 交付集成&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px;color:#666&quot;&gt;下方页签含各阶段详图；&lt;b&gt;07-RepairLoop&lt;/b&gt; 为 CodeTest⇄FeedbackTriage⇄CodeGen/CodeTest 自动修复循环（RepairLoop/run.py）&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="ov1">
+          <mxGeometry x="40" y="20" width="720" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n1" value="&lt;b&gt;① 需求分析 · RequirementsAnalysis&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：自然语言需求、会议纪要、产品想法（如 input.txt）&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：requirement_spec.json、requirement_prd.md、report.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="90" width="640" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n2" value="&lt;b&gt;② 方案设计 · SolutionDesign&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：结构化 PRD / 需求路径；目标仓库 repo_url 或 repo_path、分支 ref&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：technical_design_*.md；仓库缓存 .workspace/repos/…" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="220" width="640" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n3" value="&lt;b&gt;③ 代码生成 · CodeGen&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：技术方案 Markdown；方案阶段同一仓库上下文（任务副本内修改）&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：code_changes.diff、codegen_report.md、codegen_result.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="360" width="640" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n4" value="&lt;b&gt;④ 测试生成 · CodeTest&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：codegen_result.json&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：code_test_result.json（及 test_plan / 生成用例等）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="500" width="640" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n5" value="&lt;b&gt;⑤ 代码评审 · CodeReview&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：code_test_result.json（必填）；方案+diff 或 codegen_result；可选 requirement、policy&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：code_review_result.json、code_review_report.md、feedback_review.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="630" width="640" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-n6" value="&lt;b&gt;⑥ 交付集成 · DeliveryIntegration&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;输入&lt;/b&gt;：codegen_result.json；可选测试/评审 JSON 门禁&lt;br&gt;&lt;b&gt;输出&lt;/b&gt;：final_changes.diff、change_summary.md、github_pr_body.md、delivery_integration_result.json&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#666&quot;&gt;不自动 push；不重跑测试/评审&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=left;spacingLeft=10;spacingTop=6;" vertex="1" parent="ov1">
+          <mxGeometry x="80" y="770" width="640" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ov-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" edge="1" parent="ov1" source="ov-n1" target="ov-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ov-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" edge="1" parent="ov1" source="ov-n2" target="ov-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ov-e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" edge="1" parent="ov1" source="ov-n3" target="ov-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ov-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" edge="1" parent="ov1" source="ov-n4" target="ov-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ov-e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" edge="1" parent="ov1" source="ov-n5" target="ov-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ov-repair" value="可选 RepairLoop：测试失败 → 反馈 → CodeGen" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;dashPattern=8 8;html=1;endArrow=block;endFill=1;strokeColor=#999999;fontSize=10;" edge="1" parent="ov1" source="ov-n4" target="ov-n3">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="760" y="550" /><mxPoint x="760" y="415" /></Array></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-req" name="01-需求分析（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="r0" />
+        <mxCell id="r1" parent="r0" />
+        <mxCell id="r-title" value="&lt;b&gt;RequirementsAnalysis&lt;/b&gt; · agent/runner.py + run.py · 无 LangGraph，异步流水线" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="r1">
+          <mxGeometry x="60" y="20" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r-a" value="读取输入&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;--input-file / --user-input → userInput 文本&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="70" width="200" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="r-b" value="输入校验&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;validate_requirement_input&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="150" width="200" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="r-c" value="文本边界&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;validate_text_boundary（禁止实现/方案细节）&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="220" width="200" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="r-d" value="构建 Prompt&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;软边界关键词 → 附加纠正说明&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="296" width="200" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e" value="LLM 调用&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;mock 或 DeepSeek&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="366" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r-g" value="解析、校验与内层重试&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;_analyze_raw_output：JSON→形态→边界→render PRD；失败则 build_fix_prompt + 再调 LLM（≤maxRetry），用尽则 failed_result&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="80" y="430" width="280" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="r-h" value="run.py：落盘调试产物&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;write_local_debug_artifacts：input.txt、spec、prd、report.json&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" vertex="1" parent="r1">
+          <mxGeometry x="120" y="532" width="200" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="r-note" value="说明：LLM↔解析 的循环在 run_requirement_analysis 内完成，不单独暴露为 LangGraph 节点" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;fontSize=11;dashed=1;" vertex="1" parent="r1">
+          <mxGeometry x="400" y="360" width="300" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-a" target="r-b"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-b" target="r-c"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-c" target="r-d"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-d" target="r-e"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-e" target="r-g"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="r1" source="r-g" target="r-h"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-sd" name="02-方案设计（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="s0" />
+        <mxCell id="s1" parent="s0" />
+        <mxCell id="s-title" value="&lt;b&gt;SolutionDesign&lt;/b&gt; · LangGraph · agent/graph.py 顺序边（无分支）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="s1">
+          <mxGeometry x="60" y="20" width="720" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n1" value="load_requirement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="60" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n2" value="prepare_repository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="120" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n3" value="scan_repository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="180" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n4" value="analyze_architecture" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="240" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n5" value="analyze_impact" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="300" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n6" value="plan_design" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="360" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n7" value="validate_format" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="420" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n8" value="review_design" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;fontFamily=Courier New;" vertex="1" parent="s1">
+          <mxGeometry x="140" y="480" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s-n9" value="write_output → END&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;technical_design_*.md&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;" vertex="1" parent="s1">
+          <mxGeometry x="120" y="540" width="240" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n1" target="s-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n2" target="s-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n3" target="s-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n4" target="s-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n5" target="s-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n6" target="s-n7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n7" target="s-n8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s-e8" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1" source="s-n8" target="s-n9"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-cg" name="03-代码生成（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="c0" />
+        <mxCell id="c1" parent="c0" />
+        <mxCell id="c-title" value="&lt;b&gt;CodeGen&lt;/b&gt; · LangGraph · agent/graph.py · 可选 repair_feedback 注入状态" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="c1">
+          <mxGeometry x="60" y="20" width="720" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n1" value="load_design" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="60" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n2" value="resolve_workspace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="118" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n3" value="load_file_context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="176" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n4" value="generate_changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="234" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n5" value="apply_changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="292" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n6" value="generate_diff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="350" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n7" value="smoke_check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;fontFamily=Courier New;" vertex="1" parent="c1">
+          <mxGeometry x="140" y="408" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c-n8" value="write_outputs → END&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;diff / report / codegen_result.json&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;" vertex="1" parent="c1">
+          <mxGeometry x="120" y="466" width="240" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n1" target="c-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n2" target="c-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n3" target="c-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n4" target="c-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n5" target="c-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n6" target="c-n7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="c1" source="c-n7" target="c-n8"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-ct" name="04-测试生成（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="t0" />
+        <mxCell id="t1" parent="t0" />
+        <mxCell id="t-title" value="&lt;b&gt;CodeTest&lt;/b&gt; · LangGraph · agent/graph.py · LLM 预算 codetest 环境变量" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="t1">
+          <mxGeometry x="60" y="20" width="720" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n1" value="resolve_inputs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="58" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n2" value="materialize_task_copy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="116" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n3" value="detect_archetype" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="174" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n4" value="compute_static_html_facts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="232" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n5" value="generate_test_plan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="290" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n6" value="generate_test_files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="140" y="348" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n7" value="run_tests&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;安装依赖后执行（如 npm test）&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;fontFamily=Courier New;" vertex="1" parent="t1">
+          <mxGeometry x="120" y="406" width="240" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t-n8" value="write_outputs → END&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;code_test_result.json&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" vertex="1" parent="t1">
+          <mxGeometry x="120" y="468" width="240" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="t-note" value="可选：由 RepairLoop/run.py 循环调用本子进程；详图见页签「07-RepairLoop（详）」" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;fontSize=11;dashed=1;" vertex="1" parent="t1">
+          <mxGeometry x="400" y="58" width="320" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n1" target="t-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n2" target="t-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n3" target="t-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n4" target="t-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n5" target="t-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n6" target="t-n7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="t1" source="t-n7" target="t-n8"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-cr" name="05-代码评审（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="v0" />
+        <mxCell id="v1" parent="v0" />
+        <mxCell id="v-title" value="&lt;b&gt;CodeReview&lt;/b&gt; · 无 LangGraph · agent/runner.py · run_codereview()" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="v1">
+          <mxGeometry x="60" y="20" width="720" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n1" value="resolve_inputs_state&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;合并 CLI / codegen_result / test_result 路径&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="120" y="58" width="240" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n2" value="路径无效？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;写占位 JSON+MD，结束&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="135" y="128" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n2b" value="local_only？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;占位评审写盘，结束&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="135" y="228" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n3" value="加载上下文&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;diff / design / test JSON / requirement / policy_pack&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="120" y="328" width="240" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n4" value="diff 分块 + 脱敏&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;_chunk_diff · redact · 每块 LLM review_round（计 bump 预算）&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="100" y="398" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n5" value="最终聚合 LLM&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;FINAL_AGGREGATION_SYSTEM → 合并 issues / test_gaps&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="120" y="472" width="240" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n6" value="规范化 + 派生 status&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;issues id、merge_recommendation、DI 兼容字段&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="120" y="538" width="240" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="v-n7" value="写盘：code_review_result.json&lt;br&gt;code_review_report.md · feedback_review.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" vertex="1" parent="v1">
+          <mxGeometry x="100" y="608" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="v-end" value="exit code：存在 blocker severity → 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;fontSize=11;dashed=1;" vertex="1" parent="v1">
+          <mxGeometry x="420" y="608" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="v-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n1" target="v-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e2" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n2" target="v-n2b"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e3" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n2b" target="v-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n3" target="v-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n4" target="v-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n5" target="v-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="v1" source="v-n6" target="v-n7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="v-ebad" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=0;entryY=0.5;dashed=1;" edge="1" parent="v1" source="v-n2" target="v-n7"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="40" y="168" /><mxPoint x="40" y="634" /></Array></mxGeometry></mxCell>
+        <mxCell id="v-eloc" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=0;entryY=0.5;dashed=1;" edge="1" parent="v1" source="v-n2b" target="v-n7"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="55" y="268" /><mxPoint x="55" y="634" /></Array></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-di" name="06-交付集成（详）">
+    <mxGraphModel dx="1100" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="i0" />
+        <mxCell id="i1" parent="i0" />
+        <mxCell id="i-title" value="&lt;b&gt;DeliveryIntegration&lt;/b&gt; · LangGraph（或 langgraph 缺失时顺序执行 PIPELINE）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="i1">
+          <mxGeometry x="60" y="20" width="760" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n1" value="load_prevalidated_changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="58" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n2" value="verify_test_and_review_results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="116" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n3" value="resolve_solution_workspace_repo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="174" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n4" value="create_integration_worktree" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="232" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n5" value="apply_reviewed_diff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="290" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n6" value="verify_integrated_diff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="348" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n7" value="generate_delivery_summary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=center;fontFamily=Courier New;" vertex="1" parent="i1">
+          <mxGeometry x="130" y="406" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="i-n8" value="package_merge_ready_output → END&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;final diff / 摘要 / PR 正文 / result JSON&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" vertex="1" parent="i1">
+          <mxGeometry x="100" y="464" width="280" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="i-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n1" target="i-n2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n2" target="i-n3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n3" target="i-n4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n4" target="i-n5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n5" target="i-n6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n6" target="i-n7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="i1" source="i-n7" target="i-n8"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="d-repairloop" name="07-RepairLoop（详）">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="rl0" />
+        <mxCell id="rl1" parent="rl0" />
+        <mxCell id="rl-title" value="&lt;b&gt;RepairLoop&lt;/b&gt; · RepairLoop/run.py · 编排 CodeTest 子进程 + FeedbackTriage.run_triage · 产出 pipeline_loop_summary.json" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="rl1">
+          <mxGeometry x="40" y="16" width="900" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-init" value="初始化&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;dx-root、max_iterations、codegen/codetest task-id、design、repo-path、workspace-dir、requirement-path、&lt;b&gt;initial-codegen-result&lt;/b&gt;；codetest_extra_args=[]；codegen_result 指向首轮 JSON&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="52" width="360" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-loop" value="&lt;b&gt;for ct_round in range(max_iter)&lt;/b&gt; · 每轮先跑 CodeTest" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="148" width="360" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-ct" value="子进程：CodeTest/run.py&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;--codegen-result 当前指针 · --requirement · --task-id codetest · --workspace-dir CodeTest/.workspace · --force · --max-llm-calls 32 · 若有上轮反馈则附加 &lt;b&gt;--repair-feedback feedback_to_codetest.md&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="206" width="360" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-gate1" value="returncode ∈ {0, 2}？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;否则 code_test_fatal_exit&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="120" y="312" width="240" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-gate2" value="code_test_result.json 存在？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="120" y="418" width="240" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-triage" value="run_triage(result_path)&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;FeedbackTriage/triage.py：读 result+log→&lt;b&gt;_classify_failure&lt;/b&gt;→清理旧 feedback_to_*.md→写 &lt;b&gt;triage_result.json&lt;/b&gt; + 单份 &lt;b&gt;feedback_*.md&lt;/b&gt;（passed / to_codetest / to_solutiondesign / to_environment / &lt;b&gt;to_codegen&lt;/b&gt; 默认）&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="508" width="360" height="102" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-record" value="summary.iterations.append(&lt;br&gt;round / status / triage 字段 / paths…)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;fontSize=11;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="624" width="360" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-pass" value="CodeTest status 视为通过？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;passed / pass / ok / success&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="120" y="684" width="240" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-win" value="final_outcome=passed&lt;br&gt;stop_reason=code_test_passed&lt;br&gt;写 pipeline_loop_summary.json · &lt;b&gt;exit 0&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=8;" vertex="1" parent="rl1">
+          <mxGeometry x="480" y="700" width="260" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-max" value="已是本轮 max 内&lt;br&gt;最后一次尝试？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;ct_round ≥ max_iter-1&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="120" y="792" width="240" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-failmax" value="failed · max_iterations_exhausted&lt;br&gt;写 summary · &lt;b&gt;exit 2&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="480" y="808" width="220" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-route" value="自动修复路由？&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;读 triage：owner + failure_category&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;align=center;" vertex="1" parent="rl1">
+          <mxGeometry x="100" y="900" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-cg" value="&lt;b&gt;codegen + product_code&lt;/b&gt;&lt;br&gt;需 feedback_to_codegen.md&lt;br&gt;子进程 CodeGen/run.py：&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;--design --repo-path --workspace-dir --task-id codegen &lt;b&gt;--repair-feedback&lt;/b&gt; fb_md&lt;/font&gt;&lt;br&gt;成功后 codegen_result ← CodeGen/Output/「codegen_task_id」/codegen_result.json；清空 codetest_extra_args；&lt;b&gt;continue&lt;/b&gt; 下一轮 CodeTest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="440" y="888" width="320" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-ctfb" value="&lt;b&gt;codetest + test_design&lt;/b&gt;&lt;br&gt;需 feedback_to_codetest.md&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;codetest_extra_args = [--repair-feedback, fb_ct]；迭代记录可标 codetest_repair_scheduled；&lt;b&gt;continue&lt;/b&gt; 下一轮（仍用当前 codegen_result，改测生成/用例）&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="440" y="1020" width="320" height="96" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-no" value="其他 owner/category&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#555&quot;&gt;如 environment、solutiondesign、spec_ambiguous、unknown…&lt;/font&gt;&lt;br&gt;&lt;b&gt;no_auto_repair&lt;/b&gt; · 写 summary · exit 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="60" y="1140" width="360" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-fatal" value="致命：exit 非法 / result 缺失 / CodeGen repair 子进程失败 / 缺少应有 feedback md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="rl1">
+          <mxGeometry x="480" y="312" width="300" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-summary" value="统一收尾：_write_summary →&lt;br&gt;CodeTest/Output/「codetest_task_id」/&lt;b&gt;pipeline_loop_summary.json&lt;/b&gt;（含 iterations、final_outcome、stop_reason）；随后 print JSON、&lt;b&gt;exit 0/2&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="rl1">
+          <mxGeometry x="480" y="420" width="300" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="rl-e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-init" target="rl-loop"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-loop" target="rl-ct"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-ct" target="rl-gate1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e4" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-gate1" target="rl-gate2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e5" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-gate2" target="rl-triage"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-triage" target="rl-record"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-record" target="rl-pass"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e8" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-pass" target="rl-win"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e9" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-pass" target="rl-max"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e10" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-max" target="rl-failmax"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e11" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rl1" source="rl-max" target="rl-route"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e12" value="分支 A" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.35;" edge="1" parent="rl1" source="rl-route" target="rl-cg"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e13" value="分支 B" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;exitX=1;exitY=0.65;" edge="1" parent="rl1" source="rl-route" target="rl-ctfb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e14" value="其他" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;exitX=0.5;exitY=1;" edge="1" parent="rl1" source="rl-route" target="rl-no"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e15" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;strokeColor=#b85450;" edge="1" parent="rl1" source="rl-gate1" target="rl-fatal"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e16" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;strokeColor=#b85450;" edge="1" parent="rl1" source="rl-gate2" target="rl-fatal"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e17" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="rl1" source="rl-fatal" target="rl-summary"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e18" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="rl1" source="rl-failmax" target="rl-summary"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e18b" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="rl1" source="rl-win" target="rl-summary"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e19" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="rl1" source="rl-no" target="rl-summary"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rl-e20" value="下一轮" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=8 8;strokeColor=#1a1a1a;" edge="1" parent="rl1" source="rl-cg" target="rl-loop"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="800" y="948" /><mxPoint x="800" y="168" /><mxPoint x="240" y="168" /></Array></mxGeometry></mxCell>
+        <mxCell id="rl-e21" value="下一轮" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;dashPattern=8 8;strokeColor=#1a1a1a;" edge="1" parent="rl1" source="rl-ctfb" target="rl-loop"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="820" y="1068" /><mxPoint x="820" y="168" /><mxPoint x="240" y="168" /></Array></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
