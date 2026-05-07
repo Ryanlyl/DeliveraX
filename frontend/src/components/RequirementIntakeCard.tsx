@@ -30,8 +30,8 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<ProviderSelection>({
-    providerId: "local",
-    modelId: "local",
+    providerId: "deepseek",
+    modelId: "deepseek-chat",
   });
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;

@@ -66,7 +66,23 @@ function toDisplayList(value: unknown): string[] {
   );
 }
 
+type ErrorLike = {
+  code?: string;
+  message?: string;
+  details?: Record<string, unknown>;
+};
+
+function resolveStageError(stage: StageRecord): ErrorLike | null {
+  if (stage.error) return stage.error;
+  const nested = stage.data?.error;
+  if (nested && typeof nested === "object") {
+    return nested as ErrorLike;
+  }
+  return null;
+}
+
 function StageErrorBlock({ stage }: { stage: StageRecord }) {
+  const effectiveError = resolveStageError(stage);
   const dataErrors = toDisplayList(stage.data?.errors);
   const dataWarnings = toDisplayList(stage.data?.warnings);
 
@@ -74,15 +90,19 @@ function StageErrorBlock({ stage }: { stage: StageRecord }) {
     <div className="stage-error-block" style={{ marginTop: "12px", padding: "12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", fontSize: "13px", lineHeight: "1.6" }}>
       <h4 style={{ margin: "0 0 8px", color: "#b91c1c", fontSize: "14px" }}>Execution Error Details</h4>
 
-      {stage.error && (
+      {effectiveError && (
         <div style={{ marginBottom: "8px" }}>
-          <p style={{ margin: "0 0 4px" }}><strong>Error Code:</strong> <code>{stage.error.code}</code></p>
-          <p style={{ margin: "0 0 4px", color: "#991b1b" }}><strong>Message:</strong> {stage.error.message}</p>
-          {stage.error.details && Object.keys(stage.error.details).length > 0 && (
+          {effectiveError.code && (
+            <p style={{ margin: "0 0 4px" }}><strong>Error Code:</strong> <code>{effectiveError.code}</code></p>
+          )}
+          {effectiveError.message && (
+            <p style={{ margin: "0 0 4px", color: "#991b1b" }}><strong>Message:</strong> {effectiveError.message}</p>
+          )}
+          {effectiveError.details && Object.keys(effectiveError.details).length > 0 && (
             <details style={{ marginTop: "4px" }}>
               <summary style={{ cursor: "pointer", color: "#b91c1c" }}>Error Details</summary>
               <pre style={{ margin: "4px 0 0", padding: "8px", background: "#fff", border: "1px solid #fecaca", borderRadius: "4px", overflow: "auto", fontSize: "12px" }}>
-                {JSON.stringify(stage.error.details, null, 2)}
+                {JSON.stringify(effectiveError.details, null, 2)}
               </pre>
             </details>
           )}

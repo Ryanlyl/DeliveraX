@@ -28,7 +28,10 @@ export default function RequirementInput({ projectContext }: Props) {
   const [promptVisible, setPromptVisible] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selection, setSelection] = useState<ProviderSelection>({ providerId: "local", modelId: "local" });
+  const [selection, setSelection] = useState<ProviderSelection>({
+    providerId: "deepseek",
+    modelId: "deepseek-chat",
+  });
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;
 

@@ -27,14 +27,21 @@ def parse_technical_design(markdown: str) -> tuple[ImplementationContract, dict[
             contract["change_files"] = table_changes
             warnings.append("Used 文件变更清单 table as fallback for change_files.")
 
+    raw_change_files = contract.get("change_files", [])
     if not contract.get("must_read_files"):
-        contract["must_read_files"] = [
-            item["path"]
-            for item in contract.get("change_files", [])
-            if item.get("path") and _normalize_operation(item.get("operation", "")) in {"Modify", "Delete"}
-        ]
+        derived_must_read: list[str] = []
+        for item in raw_change_files:
+            if isinstance(item, dict):
+                path = _clean_path(str(item.get("path", "")))
+                operation = _normalize_operation(str(item.get("operation", "")))
+            else:
+                path, hinted_operation = _clean_path_with_operation_hint(str(item))
+                operation = _normalize_operation(hinted_operation or "Modify")
+            if path and operation in {"Modify", "Delete"}:
+                derived_must_read.append(path)
+        contract["must_read_files"] = derived_must_read
 
-    contract["change_files"] = _normalize_change_files(contract.get("change_files", []))
+    contract["change_files"] = _normalize_change_files(raw_change_files)
     contract["must_read_files"] = [_clean_path(path) for path in contract.get("must_read_files", []) if path]
     return contract, metadata, warnings
 
@@ -192,19 +199,29 @@ def _clean_cell(value: str) -> str:
     return re.sub(r"<br\s*/?>", "\n", value.strip(), flags=re.IGNORECASE)
 
 
-def _normalize_change_files(change_files: list[ChangeFile]) -> list[ChangeFile]:
+def _normalize_change_files(change_files: list[Any]) -> list[ChangeFile]:
     normalized: list[ChangeFile] = []
     seen: set[str] = set()
     for item in change_files:
-        path = _clean_path(str(item.get("path", "")))
+        if isinstance(item, dict):
+            path = _clean_path(str(item.get("path", "")))
+            hinted_path, hinted_operation = _clean_path_with_operation_hint(str(item.get("path", "")))
+            path = hinted_path or path
+            operation = _normalize_operation(str(item.get("operation", "")) or (hinted_operation or ""))
+            description = str(item.get("description", "")).strip()
+        else:
+            # Backward-compatible: allow `change_files: ["path/to/file"]`.
+            path, hinted_operation = _clean_path_with_operation_hint(str(item))
+            operation = _normalize_operation(hinted_operation or "Modify")
+            description = ""
         if not path or path in seen:
             continue
         seen.add(path)
         normalized.append(
             {
                 "path": path,
-                "operation": _normalize_operation(str(item.get("operation", ""))),
-                "description": str(item.get("description", "")).strip(),
+                "operation": operation,
+                "description": description,
             }
         )
     return normalized
@@ -228,3 +245,20 @@ def _clean_path(path: str) -> str:
         cleaned = cleaned[2:]
     return cleaned.lstrip("/")
 
+
+def _clean_path_with_operation_hint(path: str) -> tuple[str, str | None]:
+    cleaned = _clean_path(path)
+    if not cleaned:
+        return "", None
+    # Handles values like `"index.html" (Add)` produced by noisy markdown/yaml rendering.
+    suffix = re.search(
+        r'^(?P<path>.+?)\s*\(\s*(?P<op>add|added|new|modify|modified|update|change|delete|remove|removed|新增|修改|删除)\s*\)\s*$',
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    if not suffix:
+        return cleaned, None
+    raw_path = suffix.group("path").strip().strip("`").strip("\"'")
+    normalized_path = _clean_path(raw_path)
+    op = suffix.group("op")
+    return normalized_path, op

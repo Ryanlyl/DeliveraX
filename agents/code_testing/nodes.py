@@ -18,6 +18,13 @@ from .prompts import (
 )
 from .schemas import CodeTestState, TestCaseResult
 from .workspace import copy_task_repository, safe_repo_path
+from stage_contracts import (
+    probe_js_toolchain,
+    record_dep_install,
+    record_pm_fallback,
+    record_pm_fallback_blocked,
+    record_preflight_failure,
+)
 
 
 def _repair_feedback_suffix(state: CodeTestState) -> str:
@@ -41,6 +48,17 @@ def _max_llm_calls() -> int:
         return max(1, int(raw))
     except ValueError:
         return 12
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw = (os.getenv(name) or "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _allow_pm_fallback() -> bool:
+    return _bool_env("CODETEST_ALLOW_PM_FALLBACK", True)
 
 
 def _bump_llm(state: CodeTestState) -> None:
@@ -168,6 +186,97 @@ def detect_archetype(state: CodeTestState) -> CodeTestState:
     return state
 
 
+def preflight_toolchain(state: CodeTestState) -> CodeTestState:
+    if state.get("errors") or state.get("local_only"):
+        return state
+    warnings = list(state.get("warnings") or [])
+    probe = _effective_toolchain_probe()
+    state["toolchain_probe"] = probe
+
+    if not bool(probe.get("node_available")):
+        state["environment_error_code"] = "ENV_NODE_MISSING"
+        record_preflight_failure("ENV_NODE_MISSING")
+        state.setdefault("errors", []).append(
+            "Environment preflight failed: Node.js is unavailable on PATH; cannot execute CodeTest runtime."
+        )
+        warnings.append("Toolchain preflight: node missing.")
+    elif not bool(probe.get("package_manager_available")):
+        state["environment_error_code"] = "ENV_PM_MISSING"
+        record_preflight_failure("ENV_PM_MISSING")
+        state.setdefault("errors", []).append(
+            "Environment preflight failed: no package manager (npm/pnpm/yarn) is available on PATH."
+        )
+        warnings.append("Toolchain preflight: package manager missing.")
+    else:
+        preferred = str(probe.get("recommended_package_manager") or "")
+        if preferred:
+            warnings.append(f"Toolchain preflight: using `{preferred}` as primary package manager.")
+        if bool(probe.get("node_recovered_by_fallback")):
+            warnings.append("Toolchain preflight: node resolved via fallback runtime path injection.")
+        if bool(probe.get("pm_recovered_by_fallback")):
+            warnings.append("Toolchain preflight: package manager resolved via fallback runtime path injection.")
+
+    state["warnings"] = warnings
+    return state
+
+
+def _effective_toolchain_probe() -> dict[str, Any]:
+    """Probe toolchain using the same runtime-env resolution path as command execution.
+
+    `probe_js_toolchain()` inspects the current process PATH only. CodeTest execution
+    uses `_subprocess_env()` which prepends fallback Node directories. This helper
+    keeps preflight consistent with actual runtime behavior.
+    """
+    path_probe = probe_js_toolchain()
+    env = _subprocess_env({})
+
+    runtime_node_available = _node_executable(env) is not None
+    runtime_npm_available = _resolve_npm_invocation(["--version"], env) is not None
+    runtime_pnpm_available = _cmd_exists(_resolve_cmd(["pnpm", "--version"]), env)
+    runtime_yarn_available = _cmd_exists(_resolve_cmd(["yarn", "--version"]), env)
+    runtime_pm_available = runtime_npm_available or runtime_pnpm_available or runtime_yarn_available
+
+    recommended = ""
+    if runtime_npm_available:
+        recommended = "npm"
+    elif runtime_pnpm_available:
+        recommended = "pnpm"
+    elif runtime_yarn_available:
+        recommended = "yarn"
+
+    return {
+        "checked_at": path_probe.get("checked_at"),
+        "status": "ok" if runtime_node_available and runtime_pm_available else "degraded",
+        "node_available": runtime_node_available,
+        "package_manager_available": runtime_pm_available,
+        "recommended_package_manager": recommended,
+        "node_recovered_by_fallback": (not bool(path_probe.get("node_available"))) and runtime_node_available,
+        "pm_recovered_by_fallback": (not bool(path_probe.get("package_manager_available"))) and runtime_pm_available,
+        "path_probe": path_probe,
+        "runtime_probe": {
+            "node_available": runtime_node_available,
+            "npm_available": runtime_npm_available,
+            "pnpm_available": runtime_pnpm_available,
+            "yarn_available": runtime_yarn_available,
+        },
+    }
+
+
+def _classify_static_html_scenario(
+    *,
+    ids: set[str],
+    classes: set[str],
+    has_select: bool,
+    checkbox_count: int,
+) -> str:
+    if checkbox_count > 0 and "inbox" in classes and not has_select:
+        return "checkbox_shift_range"
+    filter_ids = {"filterStatus", "filterPriority", "sortField", "sortOrder"}
+    if has_select and filter_ids.intersection(ids) and ("taskList" in ids or "toolbar" in classes):
+        return "task_filter_sort"
+    return "generic_static_html"
+
+
 def compute_static_html_facts(state: CodeTestState) -> CodeTestState:
     """Derive simple DOM facts from the static HTML entry to guide test generation.
 
@@ -199,12 +308,35 @@ def compute_static_html_facts(state: CodeTestState) -> CodeTestState:
     except OSError:
         return state
 
-    # Count <input type="checkbox"> occurrences (case-insensitive, tolerant to spacing/attributes)
-    pattern = re.compile(r"<input\b[^>]*\btype\s*=\s*[\"']?\s*checkbox\s*[\"']?[^>]*>", re.IGNORECASE)
-    count = len(pattern.findall(html))
+    checkbox_pattern = re.compile(r"<input\b[^>]*\btype\s*=\s*[\"']?\s*checkbox\s*[\"']?[^>]*>", re.IGNORECASE)
+    id_pattern = re.compile(r"\bid\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
+    class_pattern = re.compile(r"\bclass\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
+    tag_pattern = re.compile(r"<\s*([a-zA-Z][a-zA-Z0-9:-]*)\b")
+    has_select = bool(re.search(r"<select\b", html, re.IGNORECASE))
+    count = len(checkbox_pattern.findall(html))
+    ids = {v.strip() for v in id_pattern.findall(html) if v.strip()}
+    classes: set[str] = set()
+    for chunk in class_pattern.findall(html):
+        classes.update(part.strip() for part in chunk.split() if part.strip())
+    tags = {v.lower().strip() for v in tag_pattern.findall(html) if v.strip()}
+    scenario_type = _classify_static_html_scenario(
+        ids=ids,
+        classes=classes,
+        has_select=has_select,
+        checkbox_count=int(count),
+    )
+    state["entry_html_path"] = entry.name
+    state["checkbox_count"] = int(count)
+    state["scenario_type"] = scenario_type
+    state["static_html_facts"] = {
+        "ids": sorted(ids),
+        "classes": sorted(classes),
+        "tags": sorted(tags),
+        "has_select": has_select,
+        "has_checkbox_inputs": count > 0,
+    }
+    state.setdefault("warnings", []).append(f"Detected static_html scenario={scenario_type} from {entry.name}")
     if count > 0:
-        state["entry_html_path"] = entry.name
-        state["checkbox_count"] = int(count)
         state.setdefault("warnings", []).append(f"Detected checkbox_count={count} from {entry.name}")
     return state
 
@@ -246,6 +378,7 @@ def generate_test_plan(state: CodeTestState) -> CodeTestState:
         repo_hint=state["task_repo_path"],
         entry_html_path=state.get("entry_html_path"),
         checkbox_count=state.get("checkbox_count"),
+        scenario_type=state.get("scenario_type"),
     )
     user += _repair_feedback_suffix(state)
     _bump_llm(state)
@@ -297,6 +430,7 @@ def generate_test_files(state: CodeTestState) -> CodeTestState:
         repo_hint=state["task_repo_path"],
         entry_html_path=state.get("entry_html_path"),
         checkbox_count=state.get("checkbox_count"),
+        scenario_type=state.get("scenario_type"),
     )
     user += _repair_feedback_suffix(state)
     _bump_llm(state)
@@ -338,42 +472,139 @@ def _post_validate_static_html_e2e(state: CodeTestState, warnings: list[str]) ->
     """Guardrail: if we know checkbox_count, generated E2E tests must not hardcode counts or go out of bounds."""
     if state.get("repo_archetype") != "static_html":
         return
-    checkbox_count = state.get("checkbox_count")
     entry_html = state.get("entry_html_path")
-    if not checkbox_count or checkbox_count <= 0 or not entry_html:
+    if not entry_html:
         return
     repo = Path(state["task_repo_path"])
+    entry_path = repo / str(entry_html)
+    try:
+        html = entry_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return
+    checkbox_count = int(state.get("checkbox_count") or 0)
+    static_facts = state.get("static_html_facts") or {}
+    ids = {str(v) for v in static_facts.get("ids") or []}
+    classes = {str(v) for v in static_facts.get("classes") or []}
+    tags = {str(v).lower() for v in static_facts.get("tags") or []}
+    has_select = bool(static_facts.get("has_select"))
+    has_checkbox_inputs = bool(static_facts.get("has_checkbox_inputs"))
+    scenario_type = str(state.get("scenario_type") or "generic_static_html")
+
     # Only validate if an E2E spec was generated
     spec_paths = [p for p in (repo / "e2e").glob("*.spec.ts")] if (repo / "e2e").is_dir() else []
     if not spec_paths:
         return
-    max_index = checkbox_count - 1
+    max_index = checkbox_count - 1 if checkbox_count > 0 else -1
     hardcoded_loops = re.compile(r"for\s*\(\s*let\s+\w+\s*=\s*0\s*;\s*\w+\s*<\s*(\d+)\s*;", re.IGNORECASE)
     nth_calls = re.compile(r"\.nth\(\s*(\d+)\s*\)")
+    selector_call_pattern = re.compile(
+        r"\b(?:waitForSelector|locator|selectOption|click|fill|check|uncheck|hover|dblclick)\(\s*(['\"])([^'\n\"]+)\1"
+    )
+    class_token_pattern = re.compile(r"\.([A-Za-z_][\w-]*)")
+    id_token_pattern = re.compile(r"#([A-Za-z_][\w-]*)")
+    tag_token_pattern = re.compile(r"^\s*([a-zA-Z][a-zA-Z0-9-]*)")
+    has_select_option = re.compile(r"\bselectOption\(")
 
-    issues: list[str] = []
+    repairable_issues: list[str] = []
+    semantic_issues: list[str] = []
     for spec in spec_paths:
         text = spec.read_text(encoding="utf-8", errors="replace")
         for m in hardcoded_loops.finditer(text):
-            issues.append(f"{spec.as_posix()}: hardcoded loop upper bound {m.group(1)}; use checkboxes.count()")
-        for m in nth_calls.finditer(text):
-            idx = int(m.group(1))
-            if idx > max_index:
-                issues.append(f"{spec.as_posix()}: nth({idx}) out of range for checkbox_count={checkbox_count} (max {max_index})")
+            repairable_issues.append(f"{spec.as_posix()}: hardcoded loop upper bound {m.group(1)}; use checkboxes.count()")
+        if checkbox_count > 0:
+            for m in nth_calls.finditer(text):
+                idx = int(m.group(1))
+                if idx > max_index:
+                    repairable_issues.append(
+                        f"{spec.as_posix()}: nth({idx}) out of range for checkbox_count={checkbox_count} (max {max_index})"
+                    )
 
-    if issues:
+        if has_select_option.search(text) and not has_select:
+            semantic_issues.append(
+                f"{spec.as_posix()}: selector-semantic mismatch uses selectOption() but {entry_html} has no <select>."
+            )
+
+        if scenario_type == "checkbox_shift_range":
+            blocked = ["#filterStatus", "#filterPriority", "#sortField", "#sortOrder", "#taskList", ".toolbar"]
+            for token in blocked:
+                if token in text:
+                    semantic_issues.append(
+                        f"{spec.as_posix()}: selector-semantic mismatch uses `{token}` but scenario is checkbox_shift_range."
+                    )
+
+        for m in selector_call_pattern.finditer(text):
+            selector = m.group(2).strip()
+            if not selector:
+                continue
+            # Skip non-css selector engines and URL-like values.
+            if selector.startswith(("text=", "xpath=", "internal:", "role=", "label=", "placeholder=")):
+                continue
+            if selector.endswith(".html") or selector.startswith("http") or selector.startswith("file:"):
+                continue
+            if selector.startswith("#"):
+                for sel_id in id_token_pattern.findall(selector):
+                    if sel_id not in ids:
+                        semantic_issues.append(
+                            f"{spec.as_posix()}: selector-semantic mismatch id `#{sel_id}` not present in {entry_html}."
+                        )
+            if "." in selector:
+                for cls in class_token_pattern.findall(selector):
+                    if cls not in classes:
+                        semantic_issues.append(
+                            f"{spec.as_posix()}: selector-semantic mismatch class `.{cls}` not present in {entry_html}."
+                        )
+            if selector.startswith("input") and "checkbox" in selector and not has_checkbox_inputs:
+                semantic_issues.append(
+                    f"{spec.as_posix()}: selector-semantic mismatch expects checkbox inputs but none were found in {entry_html}."
+                )
+            if selector[0].isalpha():
+                tag_match = tag_token_pattern.match(selector)
+                if tag_match:
+                    tag = tag_match.group(1).lower()
+                    if tag not in tags:
+                        semantic_issues.append(
+                            f"{spec.as_posix()}: selector-semantic mismatch tag `{tag}` not present in {entry_html}."
+                        )
+
+    def _dedupe(items: list[str]) -> list[str]:
+        uniq: list[str] = []
+        seen: set[str] = set()
+        for issue in items:
+            if issue in seen:
+                continue
+            seen.add(issue)
+            uniq.append(issue)
+        return uniq
+
+    repairable_issues = _dedupe(repairable_issues)
+    semantic_issues = _dedupe(semantic_issues)
+
+    if semantic_issues:
+        state["validation_error_code"] = "TEST_GENERATION_MISMATCH"
+        state["validation_issues"] = semantic_issues
+        warnings.append("Generated E2E tests failed selector-semantic validation; skipping test execution.")
+        state.setdefault("errors", []).extend(semantic_issues)
+        return
+
+    if repairable_issues:
         warnings.append("Generated E2E tests violate static_html guardrails; attempting one automatic fix.")
         if state.get("local_only"):
-            state.setdefault("errors", []).extend(issues)
+            state["validation_error_code"] = "TEST_GENERATION_MISMATCH"
+            state["validation_issues"] = repairable_issues
+            state.setdefault("errors", []).extend(repairable_issues)
             return
         from .llm import ChatLLM
 
         llm = ChatLLM()
         if not llm.available:
-            state.setdefault("errors", []).extend(issues)
+            state["validation_error_code"] = "TEST_GENERATION_MISMATCH"
+            state["validation_issues"] = repairable_issues
+            state.setdefault("errors", []).extend(repairable_issues)
             return
         if int(state.get("llm_calls") or 0) >= int(state.get("max_llm_calls") or 0):
-            state.setdefault("errors", []).extend(issues)
+            state["validation_error_code"] = "TEST_GENERATION_MISMATCH"
+            state["validation_issues"] = repairable_issues
+            state.setdefault("errors", []).extend(repairable_issues)
             return
 
         # Try a single-file repair: rewrite each spec to use dynamic count and avoid out-of-range nth().
@@ -410,28 +641,72 @@ def _detect_package_manager(repo: Path) -> list[str]:
     return ["npm"]
 
 
-def _node_bin_dir() -> str | None:
-    """Directory containing node.exe (so npm.cmd / npx.cmd resolve on Windows)."""
+def _node_bin_candidates() -> list[Path]:
+    candidates: list[Path] = []
     raw = (os.getenv("CODETEST_NODE_BIN_DIR") or "").strip()
-    if raw and Path(raw).is_dir():
-        return str(Path(raw).resolve())
+    if raw:
+        candidates.append(Path(raw))
+    for env_name in ("NODE_HOME", "NODEJS_HOME"):
+        value = (os.getenv(env_name) or "").strip()
+        if value:
+            base = Path(value)
+            candidates.append(base)
+            candidates.append(base / "bin")
     node = shutil.which("node.exe") or shutil.which("node")
-    if not node:
-        return None
-    return str(Path(node).resolve().parent)
+    if node:
+        candidates.append(Path(node).resolve().parent)
+    if os.name == "nt":
+        candidates.extend(
+            [
+                Path(r"C:\Program Files\nodejs"),
+                Path(r"C:\Program Files (x86)\nodejs"),
+                Path(r"C:\nodejs"),
+            ]
+        )
+    else:
+        candidates.extend(
+            [
+                Path("/usr/local/bin"),
+                Path("/usr/bin"),
+                Path("/opt/node/bin"),
+            ]
+        )
+    seen: set[str] = set()
+    resolved: list[Path] = []
+    for path in candidates:
+        try:
+            p = path.resolve()
+        except OSError:
+            p = path
+        key = str(p)
+        if key in seen:
+            continue
+        seen.add(key)
+        if p.is_dir():
+            resolved.append(p)
+    return resolved
+
+
+def _node_bin_dir() -> str | None:
+    """Directory containing node executable (and usually npm/npx shims)."""
+    for bindir in _node_bin_candidates():
+        node_name = "node.exe" if os.name == "nt" else "node"
+        if (bindir / node_name).is_file():
+            return str(bindir)
+    return str(_node_bin_candidates()[0]) if _node_bin_candidates() else None
 
 
 def _subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     env = dict(os.environ)
     if extra:
         env.update(extra)
-    bindir = _node_bin_dir()
-    if bindir:
+    bindirs = [str(p) for p in _node_bin_candidates()]
+    if bindirs:
         sep = os.pathsep
         path = env.get("PATH", "")
-        prefix = bindir + sep
-        if not path.startswith(prefix):
-            env["PATH"] = prefix + path
+        existing = path.split(sep) if path else []
+        merged = bindirs + [item for item in existing if item and item not in bindirs]
+        env["PATH"] = sep.join(merged)
     return env
 
 
@@ -456,6 +731,89 @@ def _resolve_cmd(cmd: list[str]) -> list[str]:
     return cmd
 
 
+def _cmd_exists(cmd: list[str], env: dict[str, str]) -> bool:
+    if not cmd:
+        return False
+    head = cmd[0]
+    if Path(head).is_file():
+        return True
+    return shutil.which(head, path=env.get("PATH", "")) is not None
+
+
+def _node_executable(env: dict[str, str]) -> str | None:
+    value = (os.getenv("CODETEST_NODE_EXE") or "").strip()
+    if value and Path(value).is_file():
+        return str(Path(value).resolve())
+    for name in ("node.exe", "node"):
+        found = shutil.which(name, path=env.get("PATH", ""))
+        if found:
+            return str(Path(found).resolve())
+    return None
+
+
+def _npm_cli_candidates(node_exe: str) -> list[Path]:
+    node_bin = Path(node_exe).resolve().parent
+    npm_rel_paths = [
+        Path("node_modules/npm/bin/npm-cli.js"),
+        Path("../lib/node_modules/npm/bin/npm-cli.js"),
+        Path("../lib64/node_modules/npm/bin/npm-cli.js"),
+        Path("npm/node_modules/npm/bin/npm-cli.js"),
+    ]
+    candidates = [node_bin / rel for rel in npm_rel_paths]
+    if os.name != "nt":
+        candidates.extend(
+            [
+                Path("/usr/local/lib/node_modules/npm/bin/npm-cli.js"),
+                Path("/usr/lib/node_modules/npm/bin/npm-cli.js"),
+                Path("/opt/node/lib/node_modules/npm/bin/npm-cli.js"),
+            ]
+        )
+    else:
+        candidates.extend(
+            [
+                Path(r"C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js"),
+                Path(r"C:\Program Files (x86)\nodejs\node_modules\npm\bin\npm-cli.js"),
+            ]
+        )
+    value = (os.getenv("CODETEST_NPM_CLI_PATH") or "").strip()
+    if value:
+        candidates.insert(0, Path(value))
+    seen: set[str] = set()
+    resolved: list[Path] = []
+    for path in candidates:
+        try:
+            p = path.resolve()
+        except OSError:
+            p = path
+        key = str(p)
+        if key in seen:
+            continue
+        seen.add(key)
+        resolved.append(p)
+    return resolved
+
+
+def _resolve_npm_invocation(args: list[str], env: dict[str, str]) -> list[str] | None:
+    npm_cmd = _resolve_cmd(["npm", *args])
+    if _cmd_exists(npm_cmd, env):
+        return npm_cmd
+    node_exe = _node_executable(env)
+    if not node_exe:
+        return None
+    for npm_cli in _npm_cli_candidates(node_exe):
+        if npm_cli.is_file():
+            return [node_exe, str(npm_cli), *args]
+    return None
+
+
+def _resolve_npx_invocation(args: list[str], env: dict[str, str]) -> list[str] | None:
+    npx_cmd = _resolve_cmd(["npx", *args])
+    if _cmd_exists(npx_cmd, env):
+        return npx_cmd
+    # Fallback: npm exec -- <args>
+    return _resolve_npm_invocation(["exec", "--", *args], env)
+
+
 def _install_timeout_seconds() -> float:
     raw = os.getenv("CODETEST_INSTALL_TIMEOUT_SECONDS", "900")
     try:
@@ -465,16 +823,48 @@ def _install_timeout_seconds() -> float:
 
 
 def _install_dependencies(repo: Path, pm: list[str], log_lines: list[str]) -> bool:
+    env = _subprocess_env({})
+    install_start = time.perf_counter()
+
+    def _finalize(success: bool) -> bool:
+        duration_ms = int((time.perf_counter() - install_start) * 1000)
+        record_dep_install(duration_ms=duration_ms, success=success)
+        return success
+
     if pm == ["pnpm", "exec"]:
         cmd = _resolve_cmd(["pnpm", "install", "--frozen-lockfile"])
+        if not _cmd_exists(cmd, env):
+            cmd = _resolve_cmd(["pnpm", "install"])
     elif pm == ["yarn"]:
         cmd = _resolve_cmd(["yarn", "install", "--frozen-lockfile"])
+        if not _cmd_exists(cmd, env):
+            cmd = _resolve_cmd(["yarn", "install"])
     else:
         if (repo / "package-lock.json").is_file():
-            cmd = ["npm", "ci"]
+            cmd = _resolve_npm_invocation(["ci"], env)
         else:
-            cmd = ["npm", "install"]
-    cmd = _resolve_cmd(cmd)
+            cmd = _resolve_npm_invocation(["install"], env)
+        if cmd is None:
+            if _allow_pm_fallback():
+                # Lightweight fallback: try other package managers when npm is unavailable.
+                pnpm_cmd = _resolve_cmd(["pnpm", "install"])
+                yarn_cmd = _resolve_cmd(["yarn", "install"])
+                if _cmd_exists(pnpm_cmd, env):
+                    cmd = pnpm_cmd
+                    log_lines.append("npm unavailable; fallback to pnpm install")
+                    record_pm_fallback("pnpm")
+                elif _cmd_exists(yarn_cmd, env):
+                    cmd = yarn_cmd
+                    log_lines.append("npm unavailable; fallback to yarn install")
+                    record_pm_fallback("yarn")
+            if cmd is None:
+                if not _allow_pm_fallback():
+                    record_pm_fallback_blocked()
+                    log_lines.append("npm unavailable and CODETEST_ALLOW_PM_FALLBACK=false")
+                log_lines.append("package manager not found on PATH")
+                log_lines.append(f"node_bin_candidates={', '.join(str(p) for p in _node_bin_candidates())}")
+                return _finalize(False)
+
     log_lines.append(f"$ {' '.join(cmd)}")
     try:
         proc = subprocess.run(
@@ -485,17 +875,17 @@ def _install_dependencies(repo: Path, pm: list[str], log_lines: list[str]) -> bo
             timeout=_install_timeout_seconds(),
             encoding="utf-8",
             errors="replace",
-            env=_subprocess_env({}),
+            env=env,
         )
         log_lines.append(proc.stdout or "")
         log_lines.append(proc.stderr or "")
-        return proc.returncode == 0
+        return _finalize(proc.returncode == 0)
     except subprocess.TimeoutExpired:
         log_lines.append("install timed out")
-        return False
+        return _finalize(False)
     except FileNotFoundError:
         log_lines.append("package manager not found on PATH")
-        return False
+        return _finalize(False)
 
 
 def _test_timeout_seconds() -> float:
@@ -517,7 +907,11 @@ def _maybe_playwright_install(repo: Path, pm: list[str], log_lines: list[str]) -
     deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
     if "@playwright/test" not in deps and "playwright" not in deps:
         return
-    cmd = _resolve_cmd(["npx", "playwright", "install", "--with-deps"])
+    env = _subprocess_env({"CI": "1"})
+    cmd = _resolve_npx_invocation(["playwright", "install", "--with-deps"], env)
+    if cmd is None:
+        log_lines.append("playwright install skipped: npx/npm is unavailable on PATH")
+        return
     log_lines.append(f"$ {' '.join(cmd)}")
     try:
         proc = subprocess.run(
@@ -528,7 +922,7 @@ def _maybe_playwright_install(repo: Path, pm: list[str], log_lines: list[str]) -
             timeout=_install_timeout_seconds(),
             encoding="utf-8",
             errors="replace",
-            env=_subprocess_env({"CI": "1"}),
+            env=env,
         )
         log_lines.append(proc.stdout or "")
         log_lines.append(proc.stderr or "")
@@ -572,8 +966,11 @@ def run_tests(state: CodeTestState) -> CodeTestState:
 
     pm = _detect_package_manager(repo)
     log_lines: list[str] = []
+    env_for_cmd = _subprocess_env({"CI": "true"})
 
     if not _install_dependencies(repo, pm, log_lines):
+        if any("package manager not found on PATH" in line for line in log_lines):
+            state["environment_error_code"] = "ENV_PM_MISSING"
         state["status"] = "failed"
         state["summary"] = "Dependency install failed; see test_run log."
         state["test_commands"] = commands
@@ -611,7 +1008,7 @@ def run_tests(state: CodeTestState) -> CodeTestState:
                 timeout=_test_timeout_seconds(),
                 encoding="utf-8",
                 errors="replace",
-                env=_subprocess_env({"CI": "true"}),
+                env=env_for_cmd,
             )
             dur = int((time.perf_counter() - start) * 1000)
             duration_ms += dur
@@ -637,7 +1034,55 @@ def run_tests(state: CodeTestState) -> CodeTestState:
     elif pm == ["yarn"]:
         base_test = ["yarn", "test"]
     else:
-        base_test = ["npm", "test", "--"]
+        npm_test = _resolve_npm_invocation(["test", "--"], env_for_cmd)
+        if npm_test is None:
+            if _allow_pm_fallback():
+                pnpm_test = _resolve_cmd(["pnpm", "test", "--"])
+                yarn_test = _resolve_cmd(["yarn", "test"])
+                if _cmd_exists(pnpm_test, env_for_cmd):
+                    base_test = pnpm_test
+                    log_lines.append("npm test unavailable; fallback to pnpm test")
+                    record_pm_fallback("pnpm-test")
+                elif _cmd_exists(yarn_test, env_for_cmd):
+                    base_test = yarn_test
+                    log_lines.append("npm test unavailable; fallback to yarn test")
+                    record_pm_fallback("yarn-test")
+                else:
+                    state["environment_error_code"] = "ENV_PM_MISSING"
+                    state["status"] = "failed"
+                    state["summary"] = "npm is unavailable for running tests; see test_run log."
+                    state["test_commands"] = commands
+                    state["exit_code"] = 127
+                    state["stdout_tail"] = ""
+                    state["stderr_tail"] = ""
+                    state["log_body"] = "\n".join(
+                        [
+                            "npm test command could not be resolved.",
+                            f"node_bin_candidates={', '.join(str(p) for p in _node_bin_candidates())}",
+                        ]
+                    )
+                    state["warnings"] = warnings
+                    return state
+            else:
+                record_pm_fallback_blocked()
+                state["environment_error_code"] = "ENV_PM_MISSING"
+                state["status"] = "failed"
+                state["summary"] = "npm is unavailable for running tests; fallback disabled."
+                state["test_commands"] = commands
+                state["exit_code"] = 127
+                state["stdout_tail"] = ""
+                state["stderr_tail"] = ""
+                state["log_body"] = "\n".join(
+                    [
+                        "npm test command could not be resolved.",
+                        "CODETEST_ALLOW_PM_FALLBACK=false",
+                        f"node_bin_candidates={', '.join(str(p) for p in _node_bin_candidates())}",
+                    ]
+                )
+                state["warnings"] = warnings
+                return state
+        else:
+            base_test = npm_test
 
     extra = ["--run"] if "vitest" in str(scripts.get("test", "")).lower() else []
     cmd = _resolve_cmd(base_test + extra if extra else base_test)
@@ -664,9 +1109,20 @@ def run_tests(state: CodeTestState) -> CodeTestState:
             elif pm == ["yarn"]:
                 e2e_cmd = ["yarn", "run", "test:e2e"]
             else:
-                e2e_cmd = ["npm", "run", "test:e2e"]
+                e2e_cmd = _resolve_npm_invocation(["run", "test:e2e"], env_for_cmd)
+                if e2e_cmd is None and _allow_pm_fallback():
+                    pnpm_e2e = _resolve_cmd(["pnpm", "run", "test:e2e"])
+                    yarn_e2e = _resolve_cmd(["yarn", "run", "test:e2e"])
+                    if _cmd_exists(pnpm_e2e, env_for_cmd):
+                        e2e_cmd = pnpm_e2e
+                        log_lines.append("npm run test:e2e unavailable; fallback to pnpm run test:e2e")
+                        record_pm_fallback("pnpm-e2e")
+                    elif _cmd_exists(yarn_e2e, env_for_cmd):
+                        e2e_cmd = yarn_e2e
+                        log_lines.append("npm run test:e2e unavailable; fallback to yarn run test:e2e")
+                        record_pm_fallback("yarn-e2e")
         elif (repo / "playwright.config.ts").is_file() or (repo / "playwright.config.mjs").is_file() or (repo / "playwright.config.js").is_file():
-            e2e_cmd = ["npx", "playwright", "test"]
+            e2e_cmd = _resolve_npx_invocation(["playwright", "test"], env_for_cmd)
         if e2e_cmd:
             e2e_cmd = _resolve_cmd(e2e_cmd)
             e2e_rc, _ = run_cmd(e2e_cmd, "e2e")
@@ -756,6 +1212,11 @@ def write_outputs(state: CodeTestState) -> CodeTestState:
         "case_results": state.get("case_results") or [],
         "warnings": state.get("warnings") or [],
         "errors": state.get("errors") or [],
+        "environment_error_code": state.get("environment_error_code", ""),
+        "validation_error_code": state.get("validation_error_code", ""),
+        "validation_issues": state.get("validation_issues") or [],
+        "toolchain_probe": state.get("toolchain_probe") or {},
+        "allow_pm_fallback": _allow_pm_fallback(),
         "report_path": str(report_path),
         "result_json_path": str(result_path),
         "log_path": str(log_path) if log_path.exists() else "",

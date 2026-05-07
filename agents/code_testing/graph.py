@@ -6,6 +6,7 @@ from typing import Any
 from .nodes import (
     compute_static_html_facts,
     detect_archetype,
+    preflight_toolchain,
     generate_test_files,
     generate_test_plan,
     materialize_task_copy,
@@ -21,6 +22,7 @@ PIPELINE = [
     resolve_inputs,
     materialize_task_copy,
     detect_archetype,
+    preflight_toolchain,
     compute_static_html_facts,
     generate_test_plan,
     generate_test_files,
@@ -40,6 +42,7 @@ def build_graph() -> Any:
     workflow.add_node("resolve_inputs", resolve_inputs)
     workflow.add_node("materialize_task_copy", materialize_task_copy)
     workflow.add_node("detect_archetype", detect_archetype)
+    workflow.add_node("preflight_toolchain", preflight_toolchain)
     workflow.add_node("compute_static_html_facts", compute_static_html_facts)
     workflow.add_node("generate_test_plan", generate_test_plan)
     workflow.add_node("generate_test_files", generate_test_files)
@@ -49,7 +52,8 @@ def build_graph() -> Any:
     workflow.set_entry_point("resolve_inputs")
     workflow.add_edge("resolve_inputs", "materialize_task_copy")
     workflow.add_edge("materialize_task_copy", "detect_archetype")
-    workflow.add_edge("detect_archetype", "compute_static_html_facts")
+    workflow.add_edge("detect_archetype", "preflight_toolchain")
+    workflow.add_edge("preflight_toolchain", "compute_static_html_facts")
     workflow.add_edge("compute_static_html_facts", "generate_test_plan")
     workflow.add_edge("generate_test_plan", "generate_test_files")
     workflow.add_edge("generate_test_files", "run_tests")

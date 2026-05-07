@@ -163,3 +163,156 @@ def test_pending_approval_blocks_and_resume_continues() -> None:
         import shutil
 
         shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+def test_codetest_failure_triggers_automatic_loopback_to_code_stage() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    tmp_root = repo_root / "tmp" / "api_server_tests" / uuid4().hex
+    tmp_root.mkdir(parents=True, exist_ok=True)
+
+    class FakeRegistry:
+        definitions = [
+            type(
+                "Def",
+                (),
+                {
+                    "id": "code",
+                    "name": "Code",
+                    "agent": "CodeGen",
+                    "module": "fake.code",
+                    "depends_on": (),
+                    "checkpoint": False,
+                    "checkpoint_label": None,
+                    "checkpoint_description": None,
+                    "description": None,
+                },
+            )(),
+            type(
+                "Def",
+                (),
+                {
+                    "id": "test",
+                    "name": "Test",
+                    "agent": "CodeTest",
+                    "module": "fake.test",
+                    "depends_on": ("code",),
+                    "checkpoint": False,
+                    "checkpoint_label": None,
+                    "checkpoint_description": None,
+                    "description": None,
+                },
+            )(),
+            type(
+                "Def",
+                (),
+                {
+                    "id": "review",
+                    "name": "Review",
+                    "agent": "ReviewGate",
+                    "module": "fake.review",
+                    "depends_on": ("test",),
+                    "checkpoint": False,
+                    "checkpoint_label": None,
+                    "checkpoint_description": None,
+                    "description": None,
+                },
+            )(),
+        ]
+
+        def list(self):
+            return self.definitions
+
+        def get(self, stage_id: str):
+            return next(s for s in self.definitions if s.id == stage_id)
+
+        def runner_for(self, stage_id: str):
+            return self.get(stage_id), lambda request: request
+
+    class FakeExecutor:
+        def __init__(self):
+            self.calls: list[str] = []
+            self.test_calls = 0
+
+        async def run(self, request: StageRunRequest) -> StageRunResult:
+            self.calls.append(request.stage_id)
+            now = datetime.now(timezone.utc)
+            if request.stage_id == "code":
+                return StageRunResult(
+                    pipeline_id=request.pipeline_id,
+                    stage_id=request.stage_id,
+                    run_id=request.run_id,
+                    status="succeeded",
+                    started_at=now,
+                    ended_at=now,
+                    duration_ms=0,
+                    input_artifacts=request.input_artifacts,
+                    output_artifacts=[ArtifactRef(name="codegen_result", type="json", path="codegen_result.json")],
+                )
+            if request.stage_id == "test":
+                self.test_calls += 1
+                if self.test_calls == 1:
+                    return StageRunResult(
+                        pipeline_id=request.pipeline_id,
+                        stage_id=request.stage_id,
+                        run_id=request.run_id,
+                        status="failed",
+                        started_at=now,
+                        ended_at=now,
+                        duration_ms=0,
+                        input_artifacts=request.input_artifacts,
+                        output_artifacts=[],
+                    )
+                return StageRunResult(
+                    pipeline_id=request.pipeline_id,
+                    stage_id=request.stage_id,
+                    run_id=request.run_id,
+                    status="succeeded",
+                    started_at=now,
+                    ended_at=now,
+                    duration_ms=0,
+                    input_artifacts=request.input_artifacts,
+                    output_artifacts=[ArtifactRef(name="code_test_result", type="json", path="code_test_result.json")],
+                )
+            return StageRunResult(
+                pipeline_id=request.pipeline_id,
+                stage_id=request.stage_id,
+                run_id=request.run_id,
+                status="succeeded",
+                started_at=now,
+                ended_at=now,
+                duration_ms=0,
+                input_artifacts=request.input_artifacts,
+                output_artifacts=[],
+            )
+
+    store = JsonPipelineStore(tmp_root)
+    executor = FakeExecutor()
+    service = PipelineService(
+        store=store,
+        registry=FakeRegistry(),  # type: ignore[arg-type]
+        executor=executor,  # type: ignore[arg-type]
+        artifacts_root=str(tmp_root),
+    )
+    runner = PipelineRunner(service=service, run_store=JsonPipelineRunStore(tmp_root))
+
+    try:
+        pipeline = service.create(
+            PipelineCreateRequest(
+                pipeline_id="loopback-demo",
+                requirement="demo",
+                options={"codetest_loopback_enabled": True, "codetest_loopback_max_attempts": 1},
+            )
+        )
+        run = runner.start_run(pipeline.id, PipelineRunInput())
+
+        _wait_until(lambda: runner.get_run(pipeline.id, run.id).status == "succeeded", timeout_s=4.0)
+        final = runner.get_run(pipeline.id, run.id)
+
+        assert final.status == "succeeded"
+        assert executor.calls.count("code") == 2
+        assert executor.calls.count("test") == 2
+        assert any("Loopback from `test` to `code`" in line for line in final.logs)
+    finally:
+        import shutil
+
+        shutil.rmtree(tmp_root, ignore_errors=True)

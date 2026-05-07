@@ -13,6 +13,8 @@ Rules:
 - Output Markdown only.
 - The document must serve both human reviewers and the downstream CodeGen stage.
 - Keep file changes, API design, data/state design, and test plan structured.
+- Use the same primary language as the requirement (for Chinese requirements, write Chinese content).
+- Keep section headings and required structures aligned with the provided template.
 """
 
 

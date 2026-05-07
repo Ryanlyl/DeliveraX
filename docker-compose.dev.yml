@@ -13,6 +13,7 @@ services:
     environment:
       - DELIVERAX_HOST=0.0.0.0
       - DELIVERAX_RELOAD=false
+      - CODETEST_NODE_BIN_DIR=/usr/local/bin
 
   frontend:
     build:

@@ -156,14 +156,10 @@ def review_design(state: SolDesignState) -> SolDesignState:
             state["review_notes"] = _local_review_notes()
 
     validation = state.get("format_validation")
-    validation_appendix = ""
     if validation and not validation.get("passed"):
-        validation_appendix = "\n\n### 鏍煎紡鏍￠獙琛ュ厖\n\n" + format_validation_report(validation)
-
-    if "## 12. 涓€鑷存€ц嚜妫€" not in state["technical_design"]:
-        state["technical_design"] += "\n\n## 12. 涓€鑷存€ц嚜妫€\n\n" + state["review_notes"].strip() + validation_appendix + "\n"
-    elif state["review_notes"].strip() not in state["technical_design"]:
-        state["technical_design"] += "\n\n---\n\n## Agent 鑷琛ュ厖\n\n" + state["review_notes"].strip() + validation_appendix + "\n"
+        state.setdefault("errors", []).append(
+            "Format validation did not pass. Check `format_validation` details in stage result."
+        )
     return state
 
 
@@ -364,4 +360,3 @@ def _infer_requirement_name(state: SolDesignState) -> str:
             if len(cells) >= 2 and cells[1]:
                 return cells[1]
     return "unnamed requirement"
-

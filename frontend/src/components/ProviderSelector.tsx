@@ -26,12 +26,15 @@ export default function ProviderSelector({ value, onChange, disabled }: Props) {
       .catch(() => {
         setProviders([
           {
-            id: "local",
-            name: "Local",
-            kind: "local",
+            id: "deepseek",
+            name: "DeepSeek",
+            kind: "openai-compatible",
             available: true,
             configured: true,
-            models: ["local"],
+            default_model: "deepseek-chat",
+            default_base_url: "https://api.deepseek.com",
+            api_key_env: "DEEPSEEK_API_KEY",
+            models: ["deepseek-chat"],
           },
         ]);
         setLoading(false);
@@ -43,7 +46,7 @@ export default function ProviderSelector({ value, onChange, disabled }: Props) {
 
   const handleProviderChange = (providerId: string) => {
     const provider = providers.find((p) => p.id === providerId);
-    const modelId = provider?.default_model ?? provider?.models[0] ?? "local";
+    const modelId = provider?.default_model ?? provider?.models[0] ?? "deepseek-chat";
     onChange({ providerId, modelId });
   };
 

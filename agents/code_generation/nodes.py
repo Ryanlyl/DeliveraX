@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,7 @@ from .repo_context import (
     resolve_repo_root,
     safe_repo_path,
 )
-from .schemas import CodeGenState, GeneratedFileChange, SmokeCheck
+from .schemas import ChangeFile, CodeGenState, GeneratedFileChange, ImplementationContract, SmokeCheck
 from .task_workspace import prepare_task_repository
 
 
@@ -101,9 +102,9 @@ def generate_changes(state: CodeGenState) -> CodeGenState:
     )
     state["generation_raw"] = raw
     parsed = _parse_generation_json(raw)
-    changes = _validate_generated_changes(
-        parsed.get("files", []),
-        allowed_paths={item["path"] for item in state["implementation_contract"].get("change_files", [])},
+    changes = _validate_generated_changes_with_single_loopback(
+        state=state,
+        files=parsed.get("files", []),
     )
     state["generated_changes"] = changes
     for note in parsed.get("notes", []) or []:
@@ -269,6 +270,92 @@ def _validate_generated_changes(files: Any, allowed_paths: set[str]) -> list[Gen
             }
         )
     return changes
+
+
+def _validate_generated_changes_with_single_loopback(
+    *,
+    state: CodeGenState,
+    files: Any,
+) -> list[GeneratedFileChange]:
+    contract = state.get("implementation_contract", {})
+    allowed_paths = _allowed_change_paths(contract)
+    try:
+        return _validate_generated_changes(files, allowed_paths)
+    except ValueError as exc:
+        message = str(exc)
+        if not message.startswith("Generated file is not in allowed_change_files:"):
+            raise
+        repaired_contract, rewrites = _repair_contract_change_files(contract)
+        if not rewrites:
+            raise
+        state["implementation_contract"] = repaired_contract
+        state.setdefault("warnings", []).append(
+            "Loopback auto-fix: sanitized implementation_contract.change_files and retried validation once."
+        )
+        state.setdefault("warnings", []).append(
+            "Loopback rewrites: " + "; ".join(f"`{before}` -> `{after}`" for before, after in rewrites)
+        )
+        return _validate_generated_changes(files, _allowed_change_paths(repaired_contract))
+
+
+def _allowed_change_paths(contract: dict[str, Any]) -> set[str]:
+    allowed_paths: set[str] = set()
+    for item in contract.get("change_files", []):
+        if isinstance(item, dict):
+            path = str(item.get("path", ""))
+        else:
+            path = str(item)
+        cleaned = path.replace("\\", "/").lstrip("/").strip()
+        if cleaned:
+            allowed_paths.add(cleaned)
+    return allowed_paths
+
+
+def _repair_contract_change_files(
+    contract: dict[str, Any],
+) -> tuple[ImplementationContract, list[tuple[str, str]]]:
+    repaired = dict(contract)
+    raw_items = contract.get("change_files", [])
+    fixed_items: list[ChangeFile] = []
+    rewrites: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    for item in raw_items:
+        if isinstance(item, dict):
+            original_path = str(item.get("path", ""))
+            operation = _normalize_operation(str(item.get("operation", "Modify")))
+            description = str(item.get("description", ""))
+        else:
+            original_path = str(item)
+            operation = "Modify"
+            description = ""
+        fixed_path = _sanitize_change_file_path(original_path)
+        if not fixed_path or fixed_path in seen:
+            continue
+        if fixed_path != original_path.replace("\\", "/").lstrip("/").strip():
+            rewrites.append((original_path, fixed_path))
+        seen.add(fixed_path)
+        fixed_items.append({"path": fixed_path, "operation": operation, "description": description})
+
+    repaired["change_files"] = fixed_items
+    return repaired, rewrites
+
+
+def _sanitize_change_file_path(path: str) -> str:
+    cleaned = str(path).replace("\\", "/").lstrip("/").strip().strip("`")
+    if not cleaned:
+        return ""
+    suffix = re.search(
+        r'^(?P<path>.+?)\s*\(\s*(?P<op>add|added|new|modify|modified|update|change|delete|remove|removed|新增|修改|删除)\s*\)\s*$',
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    if suffix:
+        cleaned = suffix.group("path").strip()
+    cleaned = cleaned.strip("\"'`")
+    while cleaned.startswith("./"):
+        cleaned = cleaned[2:]
+    return cleaned
 
 
 def _normalize_operation(value: str) -> str:

@@ -92,7 +92,7 @@ class PipelineCreateRequest(BaseModel):
     requirement: str
     pipeline_id: str | None = None
     project_id: str | None = None
-    provider: str = "local"
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
@@ -189,7 +189,7 @@ class PipelineRecord(BaseModel):
     name: str
     status: PipelineStatus = "queued"
     project_id: str | None = None
-    provider: str = "local"
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)

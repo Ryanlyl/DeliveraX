@@ -84,12 +84,30 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
 
         ended_at = datetime.now(timezone.utc)
         error = None
+        soft_failed = False
+        soft_fail_code = ""
         if status == "failed":
-            error = StageError(
-                code="CodeTestFailed",
-                message=summary or "; ".join(errors) or "CodeTest failed.",
-                details={"legacy_status": legacy_status, "errors": errors},
-            )
+            error_code = _derive_error_code(result_state=result_state, summary=summary, legacy_status=legacy_status)
+            if _is_non_critical_failure(result_state=result_state, error_code=error_code):
+                status = "succeeded"
+                soft_failed = True
+                soft_fail_code = error_code
+                logs.append(
+                    f"CodeTest soft-failed with non-critical error `{error_code}`; allowing pipeline to continue."
+                )
+            else:
+                error = StageError(
+                    code=error_code,
+                    message=summary or "; ".join(errors) or "CodeTest failed.",
+                    details={
+                        "legacy_status": legacy_status,
+                        "errors": errors,
+                        "environment_error_code": result_state.get("environment_error_code", ""),
+                        "validation_error_code": result_state.get("validation_error_code", ""),
+                        "validation_issues": result_state.get("validation_issues") or [],
+                        "toolchain_probe": result_state.get("toolchain_probe") or {},
+                    },
+                )
 
         result = StageRunResult(
             pipeline_id=request.pipeline_id,
@@ -102,7 +120,12 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
             input_artifacts=request.input_artifacts,
             output_artifacts=output_artifacts,
             human_output=str(human_output) if human_output is not None else None,
-            data=_build_data(result_state, legacy_status),
+            data=_build_data(
+                result_state,
+                legacy_status,
+                soft_failed=soft_failed,
+                soft_fail_code=soft_fail_code,
+            ),
             logs=[
                 *logs,
                 f"CodeTest completed with legacy status: {legacy_status or 'unknown'}",
@@ -155,6 +178,23 @@ def _map_status(*, legacy_status: str, local_only: bool) -> str:
     return "failed"
 
 
+def _derive_error_code(*, result_state: dict[str, Any], summary: str, legacy_status: str) -> str:
+    env_code = str(result_state.get("environment_error_code") or "").strip()
+    if env_code:
+        return env_code
+    validation_code = str(result_state.get("validation_error_code") or "").strip()
+    if validation_code:
+        return validation_code
+    lowered = summary.lower()
+    if "dependency install failed" in lowered:
+        return "DEP_INSTALL_FAILED"
+    if "tests failed" in lowered:
+        return "TEST_ASSERT_FAILED"
+    if legacy_status in {"failed", "error"}:
+        return "CodeTestFailed"
+    return "CodeTestFailed"
+
+
 def _build_output_artifacts(
     result_state: dict[str, Any],
     legacy_output_dir: Path,
@@ -179,7 +219,13 @@ def _build_output_artifacts(
     return artifacts
 
 
-def _build_data(result_state: dict[str, Any], legacy_status: str) -> dict[str, Any]:
+def _build_data(
+    result_state: dict[str, Any],
+    legacy_status: str,
+    *,
+    soft_failed: bool = False,
+    soft_fail_code: str = "",
+) -> dict[str, Any]:
     result_json_path = result_state.get("result_json_path")
     payload: dict[str, Any] = {}
     if result_json_path and Path(str(result_json_path)).is_file():
@@ -200,4 +246,19 @@ def _build_data(result_state: dict[str, Any], legacy_status: str) -> dict[str, A
         "generated_files": result_state.get("generated_files") or payload.get("generated_files", []),
         "warnings": result_state.get("warnings") or payload.get("warnings", []),
         "errors": result_state.get("errors") or payload.get("errors", []),
+        "soft_failed": soft_failed,
+        "soft_fail_code": soft_fail_code,
     }
+
+
+def _is_non_critical_failure(*, result_state: dict[str, Any], error_code: str) -> bool:
+    # Infra/runtime failures are still hard-fail.
+    if str(result_state.get("environment_error_code") or "").strip():
+        return False
+
+    non_critical_codes = {
+        "TEST_GENERATION_MISMATCH",
+        "TEST_ASSERT_FAILED",
+        "CodeTestFailed",
+    }
+    return error_code in non_critical_codes

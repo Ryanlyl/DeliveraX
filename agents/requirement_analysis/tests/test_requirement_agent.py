@@ -201,3 +201,36 @@ def test_markdown_renderer_default_sections() -> None:
     assert "| 当前状态 | In Review |" in markdown
     assert "## 6. 验收标准" in markdown
     assert "## 4. 需求影响范围说明" not in markdown
+
+
+def test_mixed_language_short_frontend_input_is_accepted() -> None:
+    spec = create_valid_spec()
+
+    async def llm_call(_: str) -> str:
+        return json.dumps(spec, ensure_ascii=False)
+
+    result = asyncio.run(
+        run_requirement_analysis(
+            RequirementAnalysisInput(userInput="\u7ed9list\u52a0\u4e00\u4e2a\u7f16\u53f7"),
+            llm_call=llm_call,
+        )
+    )
+    assert result.status == "In Review"
+    assert result.error is None
+
+
+def test_non_frontend_input_is_rejected() -> None:
+    async def llm_call(_: str) -> str:
+        return "{}"
+
+    result = asyncio.run(
+        run_requirement_analysis(
+            RequirementAnalysisInput(
+                userInput="Add a database migration for users table and optimize SQL indexes."
+            ),
+            llm_call=llm_call,
+        )
+    )
+    assert result.status == "Failed"
+    assert result.error is not None
+    assert result.error.code == "NOT_FRONTEND_REQUIREMENT"

@@ -1,3 +1,5 @@
+FROM node:20-bookworm-slim AS node_runtime
+
 FROM python:3.12-slim
 
 WORKDIR /workspace
@@ -6,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DELIVERAX_HOST=0.0.0.0
 ENV DELIVERAX_RELOAD=false
+ENV CODETEST_NODE_BIN_DIR=/usr/local/bin
 
 COPY server/requirements.txt /workspace/server/requirements.txt
 RUN apt-get update \
@@ -13,13 +16,24 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r /workspace/server/requirements.txt
 
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_runtime /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node_runtime /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=node_runtime /usr/local/bin/corepack /usr/local/bin/corepack
+COPY --from=node_runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
+
 COPY stage_contracts/ /workspace/stage_contracts/
 COPY server/ /workspace/server/
 COPY agents/ /workspace/agents/
 COPY .env /workspace/.env
+COPY docker/backend/entrypoint.sh /workspace/docker/backend/entrypoint.sh
+RUN chmod +x /workspace/docker/backend/entrypoint.sh
 
 EXPOSE 8000
 
 WORKDIR /workspace/server
 
-CMD ["python", "run.py"]
+CMD ["/workspace/docker/backend/entrypoint.sh", "python", "run.py"]
