@@ -15,31 +15,25 @@ type Props = {
 };
 
 const statusLabel: Record<string, string> = {
-  queued: "Queued",
-  running: "Running",
-  succeeded: "Succeeded",
-  failed: "Failed",
-  pending_approval: "Pending approval",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
-  paused: "Paused",
-  terminated: "Terminated",
+  queued: "待开始",
+  running: "运行中",
+  succeeded: "已完成",
+  failed: "失败",
+  pending_approval: "待审批",
+  rejected: "已驳回",
+  cancelled: "已取消",
+  paused: "已暂停",
+  terminated: "已终止",
 };
 
 export default function PipelineHeader({
-  pipelineName,
-  pipelineId,
-  runId,
   status,
   totalDuration,
-  model,
-  provider,
   onStart,
   onPause,
   onResume,
   onTerminate,
 }: Props) {
-  const modelLabel = model || provider || "local";
   const isTerminal =
     status === "succeeded" ||
     status === "failed" ||
@@ -54,34 +48,31 @@ export default function PipelineHeader({
     <header className="pipeline-header pipeline-header-modern">
       <div className="pipeline-nav-area">
         <a href="/dashboard" className="pipeline-back">
-          ← Back to Dashboard
+          <span className="pipeline-back-arrow" aria-hidden="true">←</span>
+          <span>返回看板</span>
         </a>
-        <span>DeliveraX</span>
+        <span className="pipeline-product-tag">交付平台</span>
       </div>
 
       <div className="pipeline-status-area">
-        <h1>{pipelineName}</h1>
         <div className="pipeline-meta-chips">
-          <span className="meta-chip">Pipeline: {pipelineId}</span>
-          {runId && <span className="meta-chip">Run: {runId}</span>}
           <span className={`status-pill ${status}`}>{statusLabel[status] || status}</span>
-          <span className="meta-chip">Model: {modelLabel}</span>
-          <span className="meta-chip">Duration: {totalDuration}</span>
+          <span className="meta-chip">耗时：{totalDuration}</span>
         </div>
       </div>
 
       <div className="pipeline-actions">
-        <button className="button primary" type="button" disabled={!isQueued} onClick={onStart}>
-          Start
+        <button className="button primary action-start" type="button" disabled={!isQueued} onClick={onStart}>
+          开始
         </button>
-        <button className="button ghost" type="button" disabled={!isRunning} onClick={onPause}>
-          Pause
+        <button className="button ghost action-pause" type="button" disabled={!isRunning} onClick={onPause}>
+          暂停
         </button>
-        <button className="button ghost" type="button" disabled={!isPaused} onClick={onResume}>
-          Resume
+        <button className="button ghost action-resume" type="button" disabled={!isPaused} onClick={onResume}>
+          恢复
         </button>
-        <button className="button danger" type="button" disabled={isTerminal} onClick={onTerminate}>
-          Terminate
+        <button className="button danger action-terminate" type="button" disabled={isTerminal} onClick={onTerminate}>
+          终止
         </button>
       </div>
     </header>
