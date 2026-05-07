@@ -1,4 +1,4 @@
-import type { StageRecord } from "../api/client";
+﻿import type { StageRecord } from "../api/client";
 import StageCard from "./StageCard";
 
 type Props = {
@@ -13,7 +13,7 @@ export default function PipelineTimeline({ stages, activeStageId, selectedStageI
     <aside className="timeline-panel">
       <div className="panel-title">
         <span className="eyebrow">Pipeline Timeline</span>
-        <h2>执行链路</h2>
+        <h2>Execution Stages</h2>
       </div>
       <div className="timeline-list">
         {stages.map((stage, index) => (

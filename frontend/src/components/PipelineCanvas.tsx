@@ -1,4 +1,4 @@
-import type { StageRecord } from "../api/client";
+﻿import type { StageRecord } from "../api/client";
 
 type Props = {
   stages: StageRecord[];
@@ -8,46 +8,38 @@ type Props = {
 };
 
 const statusLabel: Record<string, string> = {
-  queued: "待执行",
-  running: "AI 执行中",
-  succeeded: "已完成",
-  failed: "执行失败",
-  pending_approval: "待审核",
-  rejected: "已拒绝",
-  cancelled: "已取消",
-  skipped: "已跳过",
+  queued: "Queued",
+  running: "Running",
+  succeeded: "Succeeded",
+  failed: "Failed",
+  pending_approval: "Pending approval",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  skipped: "Skipped",
 };
 
-const statusColor: Record<string, string> = {
-  queued: "var(--muted)",
-  running: "var(--accent)",
-  succeeded: "var(--success)",
-  failed: "var(--danger)",
-  pending_approval: "var(--warning)",
-  rejected: "var(--danger)",
-  cancelled: "var(--muted)",
-  skipped: "var(--muted)",
-};
+function statusGlyph(status: string): string {
+  if (status === "succeeded") return "✓";
+  if (status === "running") return "●";
+  if (status === "failed") return "✕";
+  if (status === "pending_approval") return "!";
+  if (status === "rejected") return "✕";
+  if (status === "cancelled") return "○";
+  if (status === "skipped") return "○";
+  return "○";
+}
 
 export default function PipelineCanvas({ stages, activeStageId, selectedStageId, onSelectStage }: Props) {
   if (!stages || stages.length === 0) {
     return (
       <div className="pipeline-canvas">
-        <div className="canvas-title">
-          <span className="eyebrow">Pipeline Flow</span>
-          <h2>流程可视化</h2>
-        </div>
-        <p className="canvas-empty">暂无阶段数据</p>
+        <p className="canvas-empty">No stage data available.</p>
       </div>
     );
   }
 
   return (
     <div className="pipeline-canvas">
-      <div className="canvas-title">
-        <span className="eyebrow">Pipeline Flow</span>
-        <h2>流程可视化</h2>
-      </div>
       <div className="canvas-flow">
         {stages.map((stage, index) => {
           const isActive = stage.id === activeStageId;
@@ -58,29 +50,32 @@ export default function PipelineCanvas({ stages, activeStageId, selectedStageId,
             <div key={stage.id} className="canvas-stage-group">
               {index > 0 && (
                 <div className={`canvas-connector ${isActive ? "active" : ""}`} aria-hidden="true">
-                  <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
-                    <line x1="10" y1="0" x2="10" y2="14" stroke="currentColor" strokeWidth="2" strokeDasharray={isActive ? "0" : "4 3"} />
-                    <polygon points="4,14 16,14 10,22" fill="currentColor" />
+                  <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
+                    <line
+                      x1="0"
+                      y1="7"
+                      x2="18"
+                      y2="7"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeDasharray={isActive ? "0" : "4 3"}
+                    />
+                    <polygon points="18,2 24,7 18,12" fill="currentColor" />
                   </svg>
                 </div>
               )}
 
               <button
-                className={`canvas-node ${isActive ? "active" : ""} ${isSelected ? "selected" : ""} ${isQueued ? "queued" : ""} status-${stage.status}`}
+                className={`canvas-node ${isActive ? "active" : ""} ${isSelected ? "selected" : ""} ${
+                  isQueued ? "queued" : ""
+                } status-${stage.status}`}
                 type="button"
                 onClick={() => !isQueued && onSelectStage(stage.id)}
                 disabled={isQueued}
                 aria-current={isActive ? "step" : undefined}
               >
                 <span className="canvas-node-icon" aria-hidden="true">
-                  {stage.status === "succeeded" && "✓"}
-                  {stage.status === "running" && "●"}
-                  {stage.status === "failed" && "✕"}
-                  {stage.status === "pending_approval" && "?"}
-                  {stage.status === "queued" && "○"}
-                  {stage.status === "cancelled" && "✕"}
-                  {stage.status === "rejected" && "✕"}
-                  {stage.status === "skipped" && "○"}
+                  {statusGlyph(stage.status)}
                 </span>
                 <div className="canvas-node-body">
                   <span className="canvas-node-name">{stage.name}</span>
@@ -90,9 +85,6 @@ export default function PipelineCanvas({ stages, activeStageId, selectedStageId,
                   <span className={`canvas-status-badge ${stage.status}`}>
                     {statusLabel[stage.status] || stage.status}
                   </span>
-                  {stage.checkpoint && (
-                    <span className="canvas-checkpoint-chip">人工审核</span>
-                  )}
                 </div>
               </button>
             </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Api } from "../api/client";
 import ModelConfigPanel from "./ModelConfigPanel";
@@ -15,10 +15,10 @@ type Props = {
 };
 
 const placeholderPrompts = [
-  "优化登录页面交互体验",
+  "优化登录页面的交互和视觉层级",
   "为任务列表增加筛选和排序功能",
-  "设计一个数据仪表盘页面",
-  "实现一个简单的聊天界面",
+  "设计一个业务数据仪表盘页面",
+  "实现一个简洁的聊天消息界面",
 ];
 
 const exampleChips = ["按钮视觉升级", "列表筛选排序", "仪表盘页面", "聊天交互"];
@@ -33,6 +33,7 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
     providerId: "deepseek",
     modelId: "deepseek-chat",
   });
+
   const navigate = useNavigate();
   const hasInput = value.trim().length > 0;
 
@@ -40,7 +41,6 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
     setSelection(sel);
   }, []);
 
-  // Rotating placeholder effect
   useEffect(() => {
     if (hasInput) return undefined;
 
@@ -84,10 +84,10 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
         params.set("project_id", projectContext.project_id);
         params.set("repo_path", projectContext.repo_path);
       }
+
       navigate(`/pipeline/${pipeline.id}?${params.toString()}`);
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "创建流程失败，请检查后端服务是否可用";
+      const message = e instanceof Error ? e.message : "创建流程失败，请检查后端服务";
       setError(message);
       setIsStarting(false);
     }
@@ -96,33 +96,27 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
   return (
     <form
       id="requirement-intake-form"
+      className="requirement-intake-card bg-white rounded-xl border border-slate-200 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         startPipelineFlow();
       }}
-      className="bg-white rounded-xl border border-slate-200 shadow-sm"
     >
-      {/* Card header */}
       <div className="px-6 pt-6 pb-0">
-        <div className="flex items-start justify-between gap-6">
+        <div className="flex items-start justify-between gap-6 max-lg:flex-col">
           <div className="flex-1 min-w-0">
             <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-500">
               Requirement Intake
             </span>
-            <h3 className="mt-2 text-lg font-bold text-slate-900">
-              描述你希望 AI 推进的前端变更
-            </h3>
+            <h3 className="mt-2 text-lg font-bold text-slate-900">描述你希望 AI 推进的前端变更</h3>
             <p className="mt-1 text-xs text-slate-400 leading-relaxed">
               建议写清页面、目标、交互状态和验收标准，AI 会把它整理成可审阅的研发链路。
             </p>
           </div>
 
-          {/* Model config inside card top-right */}
-          <div className="shrink-0 w-64">
+          <div className="requirement-model-panel shrink-0 w-64 max-lg:w-full">
             <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-4 py-3">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                模型配置
-              </span>
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">模型配置</span>
               <div className="mt-2">
                 <ModelConfigPanel value={selection} onChange={handleSelectionChange} />
               </div>
@@ -131,7 +125,6 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
         </div>
       </div>
 
-      {/* Textarea */}
       <div className="px-6 pt-4">
         <div className="relative">
           <textarea
@@ -144,6 +137,7 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
             placeholder=" "
             className="w-full min-h-[180px] resize-y rounded-xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm text-slate-900 outline-none transition-all placeholder:text-transparent focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 leading-relaxed"
           />
+
           {!hasInput && (
             <div
               className={`absolute top-4 left-5 right-5 grid gap-2 pointer-events-none transition-all duration-200 ${
@@ -151,33 +145,18 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
               }`}
               aria-hidden="true"
             >
-              <span className="text-sm text-slate-400 font-medium">
-                描述你希望 AI 帮你完成的开发需求，例如：
-              </span>
-              <strong className="text-sm text-slate-500 font-bold">
-                {placeholderPrompts[promptIndex]}
-              </strong>
+              <span className="text-sm text-slate-400 font-medium">例如你可以这样描述：</span>
+              <strong className="text-sm text-slate-500 font-bold">{placeholderPrompts[promptIndex]}</strong>
             </div>
           )}
         </div>
 
-        {/* Error */}
-        {error && (
-          <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        )}
+        {error && <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
 
-        {/* Hint */}
-        {hasInput && !error && (
-          <p className="mt-3 text-xs text-slate-400">
-            AI 将为你生成：页面结构 + 交互逻辑 + API 定义
-          </p>
-        )}
+        {hasInput && !error && <p className="mt-3 text-xs text-slate-400">AI 将生成页面结构、交互逻辑和接口建议。</p>}
 
-        {/* Quick chips */}
         {!hasInput && (
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="requirement-chip-row flex flex-wrap gap-2 mt-3">
             {exampleChips.map((chip, index) => (
               <button
                 key={chip}
@@ -192,26 +171,22 @@ export default function RequirementIntakeCard({ projectContext }: Props) {
         )}
       </div>
 
-      {/* Stage stepper */}
       <div className="px-6 py-4 mx-6 mt-4 bg-slate-50/70 rounded-xl border border-slate-100">
         <StageStepper activeIndex={hasInput ? 0 : -1} />
       </div>
 
-      {/* Actions */}
       <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 mt-5">
         <button
           type="submit"
           disabled={isStarting}
-          className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all
-            ${isStarting
+          className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all ${
+            isStarting
               ? "bg-slate-400 cursor-not-allowed shadow-none"
               : "bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/25 hover:from-blue-600 hover:to-blue-700 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-px"
-            }`}
+          }`}
         >
-          {isStarting && (
-            <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          )}
-          {isStarting ? "正在创建流程…" : "启动 AI 开发流程"}
+          {isStarting && <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+          {isStarting ? "正在创建流程..." : "启动 AI 开发流程"}
         </button>
       </div>
     </form>

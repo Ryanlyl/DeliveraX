@@ -47,7 +47,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="app-shell min-h-screen bg-[#f8fafc]">
       {/* Background decoration */}
       <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-0 right-0 w-[480px] h-[480px] rounded-full blur-[80px] opacity-[0.06] bg-blue-500 -translate-y-1/4 translate-x-1/4" />
@@ -57,7 +57,7 @@ export default function Home() {
       <div className="relative z-10">
         {/* Top nav */}
         <div className="max-w-7xl mx-auto px-6 pt-4">
-          <AppNav active="dashboard" />
+          <AppNav active="dashboard" variant="app" />
         </div>
 
         {/* Main two-column layout */}

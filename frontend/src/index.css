@@ -793,13 +793,13 @@ button {
   line-height: 1.7;
 }
 
-/* ── PipelineCanvas ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?PipelineCanvas 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .pipeline-canvas {
   width: 100%;
-  max-width: 960px;
-  margin: 24px auto 0;
-  padding: 24px;
+  max-width: none;
+  margin: 10px auto 0;
+  padding: 10px 8px;
   border: 1px solid var(--border-dim);
   border-radius: var(--radius-lg);
   background: var(--surface-dim);
@@ -823,20 +823,28 @@ button {
 
 .canvas-flow {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: thin;
 }
 
 .canvas-stage-group {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  gap: 0;
+  flex-shrink: 0;
 }
 
 .canvas-connector {
   display: flex;
+  align-items: center;
   justify-content: center;
   color: var(--border-dim);
+  flex-shrink: 0;
 }
 
 .canvas-connector.active {
@@ -845,10 +853,12 @@ button {
 
 .canvas-node {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: clamp(148px, 11vw, 172px);
+  min-height: 112px;
+  padding: 10px 12px;
   border: 1px solid var(--border-dim);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -909,34 +919,37 @@ button {
 }
 
 .canvas-node-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
 }
 
 .canvas-node-name {
   display: block;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .canvas-node-agent {
   display: block;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .canvas-node-meta {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   flex-shrink: 0;
+  width: 100%;
 }
 
 .canvas-status-badge {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 10px;
+  padding: 2px 6px;
   border-radius: 9999px;
   background: var(--muted);
   color: #fff;
@@ -950,11 +963,17 @@ button {
 
 .canvas-checkpoint-chip {
   font-size: 10px;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 9999px;
   background: color-mix(in srgb, var(--warning) 20%, transparent);
   color: var(--warning);
   border: 1px solid var(--warning);
+}
+
+@media (max-width: 900px) {
+  .canvas-node {
+    width: 180px;
+  }
 }
 
 .hero,
@@ -1984,7 +2003,7 @@ textarea.section-control {
 }
 
 .prd-checklist li::before {
-  content: "□";
+  content: "•";
   position: absolute;
   left: 0;
   color: var(--brand-blue);
@@ -7508,7 +7527,7 @@ body,
   }
 }
 
-/* ── Project Pages ───────────────────────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project Pages 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹?*/
 
 .projects-page,
 .project-new-page,
@@ -7532,7 +7551,7 @@ body,
   padding: 32px 28px 80px;
 }
 
-/* ── Project List ──────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project List 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟?*/
 
 .projects-header {
   display: flex;
@@ -7586,7 +7605,7 @@ body,
   margin: 0 0 24px;
 }
 
-/* ── Project Grid ──────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project Grid 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟?*/
 
 .project-grid {
   display: grid;
@@ -7669,7 +7688,7 @@ body,
   white-space: nowrap;
 }
 
-/* ── Status Badge ──────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Status Badge 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟?*/
 
 .project-status-badge {
   padding: 3px 10px;
@@ -7700,7 +7719,7 @@ body,
   color: #2563eb;
 }
 
-/* ── Project New ───────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project New 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹?*/
 
 .project-new-section {
   display: flex;
@@ -7797,7 +7816,7 @@ body,
   margin-top: 28px;
 }
 
-/* ── Project Detail ────────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project Detail 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .project-detail-back {
   display: inline-flex;
@@ -7900,7 +7919,7 @@ body,
   padding: 64px 0;
 }
 
-/* ── Project Pipelines ─────────────────────── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project Pipelines 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌涚€ｎ偅宕岄柡灞界Ч瀹曟寰勬繝浣割棜闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞存粓绠栧娲礃閹绘帒杈呴梺绋款儐閹瑰洭寮诲澶婄濠㈣泛锕ｆ竟鏇㈡⒒娴ｇ鏆遍柛妯荤矒瀹曟垿骞樼紒妯煎帗闂佺绻愰ˇ顖涚妤ｅ啯鈷戦柛鎰絻鐢劑鏌?*/
 
 .project-pipelines {
   padding: 28px 32px;
@@ -7967,7 +7986,7 @@ body,
   color: #94a3b8;
 }
 
-/* ── Pipeline error / loading states ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Pipeline error / loading states 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .pipeline-error,
 .pipeline-loading {
@@ -8003,7 +8022,7 @@ body,
   color: #94a3b8;
 }
 
-/* ── RequirementInput error ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?RequirementInput error 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .ai-input-error {
   color: #dc2626;
@@ -8015,7 +8034,7 @@ body,
   border: 1px solid rgba(220, 38, 38, 0.15);
 }
 
-/* ── Markdown / code content ── */
+/* Markdown / code content */
 
 .markdown-content {
   padding: 0;
@@ -8043,7 +8062,7 @@ body,
   max-height: 320px;
 }
 
-/* ── Artifacts fallback ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Artifacts fallback 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .artifacts-fallback {
   padding: 8px 0;
@@ -8083,7 +8102,7 @@ body,
   color: #64748b;
 }
 
-/* ── Project Dashboard ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Project Dashboard 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .project-dashboard {
   display: flex;
@@ -8104,7 +8123,7 @@ body,
   align-items: start;
 }
 
-/* ── Left Sidebar ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Left Sidebar 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .dashboard-sidebar {
   position: sticky;
@@ -8225,7 +8244,7 @@ body,
   color: #64748b;
 }
 
-/* ── Right Main Content ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Right Main Content 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .dashboard-main {
   display: flex;
@@ -8272,7 +8291,7 @@ body,
   margin: 0;
 }
 
-/* ── Pipeline panel ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Pipeline panel 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 .pipeline-panel-header {
   display: flex;
@@ -8377,7 +8396,7 @@ body,
   color: #94a3b8;
 }
 
-/* ── Dashboard responsive ── */
+/* 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?Dashboard responsive 闂傚倷绀侀崯鍧楀储濠婂牆纾婚柟鍓х帛閻撳啴鏌涜箛鎿冩Ц濞?*/
 
 @media (max-width: 1024px) {
   .dashboard-layout {
@@ -8396,5 +8415,420 @@ body,
   .dashboard-sidebar {
     position: static;
     max-height: none;
+  }
+}
+
+/* App shell style isolation: business pages only */
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(37, 99, 235, 0.08), transparent 42%),
+    radial-gradient(circle at 8% 86%, rgba(14, 165, 233, 0.06), transparent 42%),
+    linear-gradient(145deg, #f8fbff 0%, #eef5ff 52%, #e8f0ff 100%);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
+.app-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  background-image: radial-gradient(circle, rgba(37, 99, 235, 0.16) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 75%, transparent 100%);
+}
+
+.app-glow {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(58px);
+  opacity: 0.22;
+}
+
+.app-glow-left {
+  left: -120px;
+  bottom: 6%;
+  width: 340px;
+  height: 340px;
+  background: rgba(14, 165, 233, 0.22);
+}
+
+.app-glow-right {
+  right: -120px;
+  top: 10%;
+  width: 380px;
+  height: 380px;
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.app-nav {
+  position: relative;
+  z-index: 2;
+  width: min(1220px, calc(100% - 64px));
+  margin: 14px auto 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 20px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.app-brand-symbol {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.3);
+}
+
+.app-brand-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.app-brand-copy strong {
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.app-brand-copy small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.app-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 5px;
+  background: rgba(241, 245, 249, 0.84);
+}
+
+.app-nav-center a,
+.app-nav-center button,
+.app-login {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #334155;
+  background: transparent;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.app-nav-center a:hover,
+.app-nav-center button:hover,
+.app-nav-center .active {
+  color: #0f172a;
+  background: rgba(219, 234, 254, 0.74);
+}
+
+.app-nav-center .active {
+  box-shadow: inset 0 -2px 0 #2563eb;
+}
+
+.app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-login:hover {
+  color: var(--text-primary);
+  background: rgba(241, 245, 249, 0.9);
+}
+
+.app-nav-cta {
+  min-height: 38px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 999px;
+  padding: 0 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.26);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.app-nav-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.34);
+}
+
+.app-button {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.app-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-button-primary {
+  color: #fff;
+  border-color: rgba(37, 99, 235, 0.24);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+}
+
+.app-button-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
+}
+
+.app-button-small {
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 920px) {
+  .app-nav {
+    width: calc(100% - 24px);
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .app-nav-center {
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .app-nav-center::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-links {
+    gap: 8px;
+  }
+
+  .app-nav-cta,
+  .app-login {
+    padding: 0 12px;
+    min-height: 34px;
+    font-size: 12px;
+  }
+}
+
+/* Phase 2 polish */
+
+.pipeline-header-modern {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+}
+
+.pipeline-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pipeline-meta-chips .meta-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pipeline-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-card::after {
+  content: "";
+  position: absolute;
+  left: -50%;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+  transition: transform 380ms ease;
+  transform: translateX(0);
+}
+
+.pipeline-card:hover::after {
+  transform: translateX(300%);
+}
+
+.pipeline-card-active {
+  box-shadow:
+    0 12px 28px rgba(37, 99, 235, 0.12),
+    inset 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.pipeline-list-panel {
+  border-color: rgba(226, 232, 240, 0.86);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05);
+}
+
+.requirement-intake-card {
+  border-color: rgba(226, 232, 240, 0.86);
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.05);
+}
+
+.requirement-model-panel {
+  align-self: stretch;
+}
+
+.requirement-chip-row button {
+  transition: all 140ms ease;
+}
+
+.requirement-chip-row button:hover {
+  transform: translateY(-1px);
+}
+
+.stage-error-block {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.stage-error-title {
+  margin: 0 0 8px;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stage-error-section {
+  margin-bottom: 8px;
+}
+
+.stage-error-row {
+  margin: 0 0 4px;
+}
+
+.stage-error-message {
+  color: #991b1b;
+}
+
+.stage-error-details {
+  margin: 6px 0;
+}
+
+.stage-error-details summary {
+  cursor: pointer;
+  color: #b91c1c;
+}
+
+.stage-error-details pre {
+  margin: 4px 0 0;
+  padding: 8px;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  background: #fff;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.stage-error-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.stage-error-list-danger {
+  color: #991b1b;
+}
+
+.stage-error-list-warn {
+  color: #92400e;
+}
+
+.stage-error-tip {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+}
+
+.stage-error-tip ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.artifacts-note {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.artifacts-note-danger {
+  color: #b91c1c;
+}
+
+.artifacts-note-info {
+  color: #2563eb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-card::after,
+  .requirement-chip-row button,
+  .pipeline-card,
+  .app-button,
+  .app-nav-cta {
+    transition: none !important;
+    animation: none !important;
   }
 }

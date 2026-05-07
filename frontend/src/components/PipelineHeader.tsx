@@ -1,4 +1,4 @@
-import type { PipelineStatus } from "../api/client";
+﻿import type { PipelineStatus } from "../api/client";
 
 type Props = {
   pipelineName: string;
@@ -15,15 +15,15 @@ type Props = {
 };
 
 const statusLabel: Record<string, string> = {
-  queued: "待执行",
-  running: "运行中",
-  succeeded: "已完成",
-  failed: "失败",
-  pending_approval: "等待审核",
-  rejected: "已拒绝",
-  cancelled: "已取消",
-  paused: "已暂停",
-  terminated: "已终止",
+  queued: "Queued",
+  running: "Running",
+  succeeded: "Succeeded",
+  failed: "Failed",
+  pending_approval: "Pending approval",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  paused: "Paused",
+  terminated: "Terminated",
 };
 
 export default function PipelineHeader({
@@ -40,57 +40,48 @@ export default function PipelineHeader({
   onTerminate,
 }: Props) {
   const modelLabel = model || provider || "local";
-  const isTerminal = status === "succeeded" || status === "failed" || status === "terminated" || status === "cancelled" || status === "rejected";
+  const isTerminal =
+    status === "succeeded" ||
+    status === "failed" ||
+    status === "terminated" ||
+    status === "cancelled" ||
+    status === "rejected";
   const isRunning = status === "running";
   const isPaused = status === "paused";
   const isQueued = status === "queued";
 
   return (
-    <header className="pipeline-header">
+    <header className="pipeline-header pipeline-header-modern">
       <div className="pipeline-nav-area">
-        <a href="/dashboard" className="pipeline-back">← 返回工作台</a>
+        <a href="/dashboard" className="pipeline-back">
+          ← Back to Dashboard
+        </a>
         <span>DeliveraX</span>
       </div>
+
       <div className="pipeline-status-area">
         <h1>{pipelineName}</h1>
-        <span className="pipeline-meta-id">ID: {pipelineId}</span>
-        {runId && <span className="pipeline-meta-run">Run: {runId}</span>}
-        <span className={`status-pill ${status}`}>{statusLabel[status] || status}</span>
-        <span>模型：{modelLabel}</span>
-        <span>耗时：{totalDuration}</span>
+        <div className="pipeline-meta-chips">
+          <span className="meta-chip">Pipeline: {pipelineId}</span>
+          {runId && <span className="meta-chip">Run: {runId}</span>}
+          <span className={`status-pill ${status}`}>{statusLabel[status] || status}</span>
+          <span className="meta-chip">Model: {modelLabel}</span>
+          <span className="meta-chip">Duration: {totalDuration}</span>
+        </div>
       </div>
+
       <div className="pipeline-actions">
-        <button
-          className="button primary"
-          type="button"
-          disabled={!isQueued}
-          onClick={onStart}
-        >
-          启动
+        <button className="button primary" type="button" disabled={!isQueued} onClick={onStart}>
+          Start
         </button>
-        <button
-          className="button ghost"
-          type="button"
-          disabled={!isRunning}
-          onClick={onPause}
-        >
-          暂停
+        <button className="button ghost" type="button" disabled={!isRunning} onClick={onPause}>
+          Pause
         </button>
-        <button
-          className="button ghost"
-          type="button"
-          disabled={!isPaused}
-          onClick={onResume}
-        >
-          继续
+        <button className="button ghost" type="button" disabled={!isPaused} onClick={onResume}>
+          Resume
         </button>
-        <button
-          className="button danger"
-          type="button"
-          disabled={isTerminal}
-          onClick={onTerminate}
-        >
-          终止
+        <button className="button danger" type="button" disabled={isTerminal} onClick={onTerminate}>
+          Terminate
         </button>
       </div>
     </header>

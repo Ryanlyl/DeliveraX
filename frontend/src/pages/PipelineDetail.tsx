@@ -53,7 +53,7 @@ export default function PipelineDetail() {
 
   pipelineRef.current = pipeline;
 
-  // ── fetch helpers ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?fetch helpers 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   const fetchPipeline = useCallback(async () => {
     if (!pipelineId) return;
@@ -95,7 +95,7 @@ export default function PipelineDetail() {
     [pipelineId],
   );
 
-  // ── initial load ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?initial load 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (!pipelineId) {
@@ -129,7 +129,7 @@ export default function PipelineDetail() {
     };
   }, [pipelineId, runId]);
 
-  // ── polling ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?polling 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (!pipelineId) return;
@@ -164,7 +164,7 @@ export default function PipelineDetail() {
     };
   }, [pipelineId, runId, fetchCheckpoint]);
 
-  // ── duration tracking ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?duration tracking 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (!run?.started_at) return;
@@ -188,7 +188,7 @@ export default function PipelineDetail() {
     };
   }, [run?.started_at, run?.ended_at, pipeline?.status]);
 
-  // ── load review assets when stage selection changes ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?load review assets when stage selection changes 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (selectedStageId) {
@@ -196,7 +196,7 @@ export default function PipelineDetail() {
     }
   }, [selectedStageId, fetchReviewAssets]);
 
-  // ── derived state ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?derived state 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   const activeStageId =
     run?.current_stage_id ||
@@ -217,7 +217,7 @@ export default function PipelineDetail() {
     setSelectedStageId(stageId);
   };
 
-  // ── auto-follow active stage (unless user manually selected) ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?auto-follow active stage (unless user manually selected) 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (!activeStageId) return;
@@ -226,7 +226,7 @@ export default function PipelineDetail() {
     setSelectedStageId(activeStageId);
   }, [activeStageId]);
 
-  // ── force-switch to pending approval stage ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?force-switch to pending approval stage 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   useEffect(() => {
     if (!pendingApprovalStageId) return;
@@ -235,7 +235,7 @@ export default function PipelineDetail() {
     userSelectedStageRef.current = false;
   }, [pendingApprovalStageId]);
 
-  // ── lifecycle actions ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?lifecycle actions 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   const clearError = () => setError(null);
 
@@ -317,11 +317,11 @@ export default function PipelineDetail() {
     }
   };
 
-  // ── loading / error states ──
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?loading / error states 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
   if (error) {
     return (
-      <main className="pipeline-page">
+      <main className="pipeline-page app-shell">
         <div className="pipeline-error">
           <h2>Pipeline Error</h2>
           <p>{error}</p>
@@ -335,17 +335,17 @@ export default function PipelineDetail() {
 
   if (!pipeline) {
     return (
-      <main className="pipeline-page">
+      <main className="pipeline-page app-shell">
         <div className="pipeline-loading">
           <span className="spinner" aria-hidden="true" />
-          <p>Loading pipeline…</p>
+          <p>Loading pipeline...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="pipeline-page">
+    <main className="pipeline-page app-shell">
       <PipelineHeader
         pipelineName={pipeline.name}
         pipelineId={pipeline.id}
@@ -362,12 +362,12 @@ export default function PipelineDetail() {
 
       {pipeline.status === "pending_approval" && (
         <div className="checkpoint-alert">
-          <strong>等待人工审核</strong>
-          <p>当前流程已暂停，请查看当前 stage 输出并选择"通过"或"拒绝"。</p>
+          <strong>Waiting for manual approval</strong>
+          <p>The pipeline is paused. Review the current stage output and choose approve or reject.</p>
         </div>
       )}
 
-      {/* ── visual flow overview ── */}
+      {/* 闂佸啿鍘滈崑鎾绘煃閸忓浜?visual flow overview 闂佸啿鍘滈崑鎾绘煃閸忓浜?*/}
       <PipelineCanvas
         stages={pipeline.stages}
         activeStageId={activeStageId}
