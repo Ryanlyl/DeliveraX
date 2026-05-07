@@ -84,7 +84,47 @@ def test_pipeline_service_can_run_reviewgate_stage() -> None:
         shutil.rmtree(tmp_root, ignore_errors=True)
 
 
-def _write_review_inputs(tmp_root: Path) -> dict[str, str]:
+def test_reviewgate_stage_treats_soft_failed_codetest_as_passed() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    tmp_root = repo_root / "tmp" / "api_server_tests" / uuid4().hex
+    tmp_root.mkdir(parents=True, exist_ok=True)
+
+    paths = _write_review_inputs(
+        tmp_root,
+        test_payload={
+            "task_id": "reviewgate-soft-pass",
+            "status": "failed",
+            "summary": "Selector mismatch in generated tests.",
+            "soft_failed": True,
+            "soft_fail_code": "TEST_GENERATION_MISMATCH",
+            "validation_error_code": "TEST_GENERATION_MISMATCH",
+            "environment_error_code": "",
+            "errors": ["selector mismatch"],
+        },
+    )
+    registry = StageRegistry(repo_root)
+    _, runner = registry.runner_for("review")
+    request = StageRunRequest(
+        pipeline_id="reviewgate-soft-pass-demo",
+        stage_id="review",
+        run_id=paths["task_id"],
+        input_artifacts=_input_artifacts(paths),
+        output_dir=str(tmp_root / "artifacts"),
+        options={"local_only": False},
+    )
+
+    try:
+        result = runner(request)
+
+        assert result.status == "pending_approval"
+        assert result.data["test_status"] == "passed"
+        assert result.data["verdict"] == "approved_with_notes"
+        assert result.data["review_status"] == "approved_with_notes"
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+def _write_review_inputs(tmp_root: Path, test_payload: dict[str, object] | None = None) -> dict[str, str]:
     task_id = "reviewgate-local-only"
     design_path = tmp_root / "technical_design.md"
     diff_path = tmp_root / "code_changes.diff"
@@ -114,21 +154,14 @@ def _write_review_inputs(tmp_root: Path) -> dict[str, str]:
         + "\n",
         encoding="utf-8",
     )
-    test_result_path.write_text(
-        json.dumps(
-            {
-                "task_id": task_id,
-                "status": "passed",
-                "summary": "Tests passed.",
-                "stdout_tail": "",
-                "stderr_tail": "",
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    payload = test_payload or {
+        "task_id": task_id,
+        "status": "passed",
+        "summary": "Tests passed.",
+        "stdout_tail": "",
+        "stderr_tail": "",
+    }
+    test_result_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     return {
         "task_id": task_id,

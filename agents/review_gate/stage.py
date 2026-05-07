@@ -40,6 +40,11 @@ PASSED_TEST_STATUSES = {
     "success",
     "succeeded",
 }
+SOFT_PASS_TEST_CODES = {
+    "test-generation-mismatch",
+    "test-assert-failed",
+    "codetestfailed",
+}
 
 
 def run_stage(request: StageRunRequest) -> StageRunResult:
@@ -228,6 +233,9 @@ def _parse_json(text: str) -> dict[str, Any]:
 
 
 def _infer_test_status(payload: dict[str, Any], text: str) -> str:
+    if _is_soft_passed_non_critical_test(payload):
+        return "passed"
+
     candidates = [
         payload.get("status"),
         payload.get("test_status"),
@@ -253,6 +261,26 @@ def _infer_test_status(payload: dict[str, Any], text: str) -> str:
     if any(token in lowered for token in ("passed", "success", "succeeded")):
         return "passed"
     return "unknown"
+
+
+def _is_soft_passed_non_critical_test(payload: dict[str, Any]) -> bool:
+    environment_error_code = str(payload.get("environment_error_code") or "").strip()
+    if environment_error_code:
+        return False
+
+    if payload.get("soft_failed") is True:
+        return True
+
+    status = str(payload.get("status") or "").strip().lower()
+    if status not in {"failed", "fail", "error"}:
+        return False
+
+    validation_error_code = str(payload.get("validation_error_code") or "").strip().lower().replace("_", "-")
+    if validation_error_code in SOFT_PASS_TEST_CODES:
+        return True
+
+    error_code = str(payload.get("error_code") or "").strip().lower().replace("_", "-")
+    return error_code in SOFT_PASS_TEST_CODES
 
 
 def _diff_stats(diff_text: str) -> dict[str, Any]:

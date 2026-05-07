@@ -248,6 +248,13 @@ class PipelineRunner:
                 return
 
             if stage_record.status in {"failed", "cancelled"}:
+                if await self._try_codetest_loopback(
+                    pipeline_id=pipeline_id,
+                    run=run,
+                    failed_stage_id=stage_id,
+                    payload=payload,
+                ):
+                    return
                 run.failed_stage_id = stage_id
                 run.error = stage_record.error
                 transition_run(run, "failed", reason="Stage failed")
@@ -305,3 +312,103 @@ class PipelineRunner:
                     return
 
         Thread(target=runner, daemon=True).start()
+
+    async def _try_codetest_loopback(
+        self,
+        *,
+        pipeline_id: str,
+        run: PipelineRun,
+        failed_stage_id: str,
+        payload: PipelineRunInput | None,
+    ) -> bool:
+        if failed_stage_id != "test":
+            return False
+
+        pipeline = self.service.get(pipeline_id)
+        options = dict(getattr(pipeline, "options", {}) or {})
+        if not bool(options.get("codetest_loopback_enabled", True)):
+            return False
+
+        max_attempts = max(0, self._as_int(options.get("codetest_loopback_max_attempts"), 1))
+        failed_stage = next((stage for stage in pipeline.stages if stage.id == failed_stage_id), None)
+        if failed_stage is None:
+            return False
+        attempts = self._as_int(failed_stage.data.get("loopback_attempts"), 0)
+        if attempts >= max_attempts:
+            return False
+
+        target_stage_id = self._loopback_target_stage_id(failed_stage_id)
+        if not target_stage_id:
+            return False
+        if target_stage_id not in run.stage_order:
+            return False
+
+        target_index = run.stage_order.index(target_stage_id)
+        rerun_stage_ids = set(run.stage_order[target_index:])
+
+        for stage in pipeline.stages:
+            if stage.id == failed_stage_id:
+                stage_data = dict(stage.data)
+                stage_data["loopback_attempts"] = attempts + 1
+                stage.data = stage_data
+                stage.logs = [
+                    *stage.logs,
+                    (
+                        f"CodeTest failed; scheduling automatic loopback to `{target_stage_id}` "
+                        f"(attempt {attempts + 1}/{max_attempts})."
+                    ),
+                ]
+            if stage.id in rerun_stage_ids:
+                stage.status = "queued"
+                stage.error = None
+                stage.human_output = None
+                stage.output_artifacts = []
+                stage_data = dict(stage.data)
+                if stage.id == target_stage_id:
+                    stage_data["rerun_required"] = True
+                    stage_data["rerun_rejected_stage_id"] = failed_stage_id
+                stage.data = stage_data
+
+        pipeline.status = "running"
+        self.service.store.save(pipeline)
+
+        run.failed_stage_id = None
+        run.error = None
+        run.current_stage_id = None
+        run.next_stage_id = target_stage_id
+        run.completed_stage_ids = [
+            stage_id for stage_id in run.completed_stage_ids if stage_id not in rerun_stage_ids
+        ]
+        run.artifact_refs_by_stage = {
+            stage_id: refs
+            for stage_id, refs in run.artifact_refs_by_stage.items()
+            if stage_id not in rerun_stage_ids
+        }
+        run.logs.append(
+            (
+                f"Loopback from `{failed_stage_id}` to `{target_stage_id}` "
+                f"(attempt {attempts + 1}/{max_attempts})."
+            )
+        )
+        self.run_store.save(run)
+        self.service.mirror_run_status_to_pipeline(run)
+
+        await self.execute_run(pipeline_id, run.id, payload)
+        return True
+
+    def _loopback_target_stage_id(self, stage_id: str) -> str | None:
+        try:
+            definition = self.service._pipeline_definition()  # noqa: SLF001
+            stage_def = definition.stage_by_id(stage_id)
+        except Exception:
+            return None
+        depends_on = list(getattr(stage_def, "depends_on", []) or [])
+        return depends_on[-1] if depends_on else None
+
+    def _as_int(self, value: Any, default: int) -> int:
+        try:
+            if value is None or value == "":
+                return default
+            return int(value)
+        except (TypeError, ValueError):
+            return default

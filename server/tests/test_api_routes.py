@@ -33,6 +33,10 @@ def test_api_exposes_health_stages_and_pipeline_creation(monkeypatch) -> None:
     )
 
     assert health_response.status_code == 200
+    health_payload = health_response.json()
+    assert health_payload["status"] == "ok"
+    assert "js_toolchain" in health_payload
+    assert "codetest_metrics" in health_payload
     assert stages_response.status_code == 200
     assert pipeline_response.status_code == 200
     assert pipeline_response.json()["id"] == "api-demo"

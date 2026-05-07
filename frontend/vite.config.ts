@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        "/health": {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server:/workspace/server
+      - ./stage_contracts:/workspace/stage_contracts
+      - ./agents:/workspace/agents
+      - ./.env:/workspace/.env
+    environment:
+      - DELIVERAX_HOST=0.0.0.0
+      - DELIVERAX_RELOAD=false
+      - CODETEST_NODE_BIN_DIR=/usr/local/bin
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/workspace/src
+      - ./frontend/public:/workspace/public
+      - ./frontend/index.html:/workspace/index.html
+      - /workspace/node_modules
+    depends_on:
+      - backend

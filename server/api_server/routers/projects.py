@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 from api_server.schemas import ProjectCreateRequest, ProjectRecord
+from api_server.services.project_clone_service import clone_project_repo
 from api_server.storage.projects import ProjectNotFoundError
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -14,13 +15,24 @@ router = APIRouter(prefix="/projects", tags=["projects"])
     summary="创建项目",
     description="创建一个新项目并关联 GitHub 仓库地址。",
 )
-def create_project(payload: ProjectCreateRequest, request: Request) -> ProjectRecord:
+def create_project(
+    payload: ProjectCreateRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> ProjectRecord:
     project = ProjectRecord(
         name=payload.name,
         description=payload.description,
         github_url=payload.github_url,
     )
-    return request.app.state.project_store.save(project)
+    saved_project = request.app.state.project_store.save(project)
+    background_tasks.add_task(
+        clone_project_repo,
+        saved_project.id,
+        request.app.state.project_store,
+        request.app.state.settings.resolved_artifacts_root,
+    )
+    return saved_project
 
 
 @router.get(

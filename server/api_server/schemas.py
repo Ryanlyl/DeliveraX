@@ -91,7 +91,8 @@ class PipelineCreateRequest(BaseModel):
     name: str = "AI DevFlow Pipeline"
     requirement: str
     pipeline_id: str | None = None
-    provider: str = "local"
+    project_id: str | None = None
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
@@ -187,7 +188,8 @@ class PipelineRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     name: str
     status: PipelineStatus = "queued"
-    provider: str = "local"
+    project_id: str | None = None
+    provider: str = "deepseek"
     model: str | None = None
     temperature: float | None = None
     stage_overrides: dict[str, LLMSelection] = Field(default_factory=dict)
@@ -259,6 +261,7 @@ class ProjectRecord(BaseModel):
     github_url: str
     clone_status: Literal["pending", "cloning", "ready", "failed"] = "pending"
     clone_path: str | None = None
+    clone_error: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     pipeline_ids: list[str] = Field(default_factory=list)

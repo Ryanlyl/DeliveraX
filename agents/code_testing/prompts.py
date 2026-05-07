@@ -51,6 +51,7 @@ def test_plan_prompt(
     repo_hint: str,
     entry_html_path: str | None = None,
     checkbox_count: int | None = None,
+    scenario_type: str | None = None,
 ) -> str:
     static_hint = ""
     if repo_archetype == "static_html" and entry_html_path and checkbox_count and checkbox_count > 0:
@@ -58,6 +59,7 @@ def test_plan_prompt(
             "\n\nStatic HTML facts:\n"
             f"- entry_html_path: {entry_html_path}\n"
             f"- checkbox_count: {checkbox_count}\n"
+            f"- scenario_type: {scenario_type or 'generic_static_html'}\n"
             "Notes: `checkbox_count` is the number of `<input type=\"checkbox\">` elements in the entry HTML. "
             "Use it only as factual context; do NOT hardcode numeric indices in test logic."
         )
@@ -83,6 +85,7 @@ def test_files_prompt(
     repo_hint: str,
     entry_html_path: str | None = None,
     checkbox_count: int | None = None,
+    scenario_type: str | None = None,
 ) -> str:
     plan_blob = json.dumps(test_plan, ensure_ascii=False, indent=2)[:24000]
     static_constraints = ""
@@ -92,6 +95,7 @@ def test_files_prompt(
 Static HTML facts (MUST FOLLOW):
 - entry_html_path: {entry_html_path}
 - checkbox_count: {checkbox_count} (counted from the real HTML)
+- scenario_type: {scenario_type or 'generic_static_html'}
 
 E2E test authoring constraints:
 - playwright.config.ts MUST use `baseURL: 'file:///' + process.cwd().replace(/\\\\/g, '/') + '/'` (or equivalent) so file:// navigation targets the repo root, not a parent folder.
@@ -100,6 +104,7 @@ E2E test authoring constraints:
 - Any usage of `checkboxes.nth(i)` must guarantee `i < n`; do not reference out-of-range indices like `nth({checkbox_count})`.
 - SHIFT + click same checkbox / same range endpoint: expect native **toggle off**; never `toBeChecked()` on that index afterward; no test titles implying "does nothing".
 - Neutral clicks outside checkboxes must use selectors that appear in `{entry_html_path}` (inspect structure); otherwise use `.inbox` positional click on padding, never blind `h1`.
+- NEVER use selectors that do not exist in `{entry_html_path}` (e.g. `.toolbar`, `#taskList`, `#filterStatus`) unless they are explicitly present in the HTML.
 """
     return f"""Repository archetype: {repo_archetype}
 Repository root: {repo_hint}

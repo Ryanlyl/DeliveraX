@@ -1,24 +1,38 @@
+FROM node:20-bookworm-slim AS node_runtime
+
 FROM python:3.12-slim
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DELIVERAX_RELOAD=false
+ENV CODETEST_NODE_BIN_DIR=/usr/local/bin
 
-COPY ApiServer/requirements.txt /app/ApiServer/requirements.txt
-RUN pip install --no-cache-dir -r /app/ApiServer/requirements.txt
+COPY server/requirements.txt /app/server/requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r /app/server/requirements.txt
 
-COPY ApiServer/ /app/ApiServer/
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_runtime /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node_runtime /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=node_runtime /usr/local/bin/corepack /usr/local/bin/corepack
+COPY --from=node_runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
+
 COPY stage_contracts/ /app/stage_contracts/
-COPY ReqAnalysis/ /app/ReqAnalysis/
-COPY SolDesign/ /app/SolDesign/
-COPY CodeGen/ /app/CodeGen/
-COPY CodeTest/ /app/CodeTest/
-COPY Integration/ /app/Integration/
-COPY ReviewGate/ /app/ReviewGate/
+COPY server/ /app/server/
+COPY agents/ /app/agents/
+COPY .env /app/.env
+COPY docker/backend/entrypoint.sh /app/docker/backend/entrypoint.sh
+RUN chmod +x /app/docker/backend/entrypoint.sh
 
-WORKDIR /app/ApiServer
+WORKDIR /app/server
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api_server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/docker/backend/entrypoint.sh", "uvicorn", "api_server.main:app", "--host", "0.0.0.0", "--port", "8000"]

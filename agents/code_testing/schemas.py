@@ -37,6 +37,8 @@ class CodeTestState(TypedDict, total=False):
     repo_archetype: str  # "nodejs_sp" | "static_html"
     entry_html_path: str
     checkbox_count: int
+    scenario_type: str
+    static_html_facts: dict[str, Any]
 
     # Two-phase LLM
     llm_calls: int
@@ -66,3 +68,7 @@ class CodeTestState(TypedDict, total=False):
     warnings: list[str]
     errors: list[str]
     extra: NotRequired[dict[str, Any]]
+    toolchain_probe: NotRequired[dict[str, Any]]
+    environment_error_code: NotRequired[str]
+    validation_error_code: NotRequired[str]
+    validation_issues: NotRequired[list[str]]

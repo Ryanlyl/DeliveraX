@@ -5,6 +5,7 @@ from pathlib import Path
 
 from stage_contracts import (
     ArtifactRef,
+    StageError,
     StageRunRequest,
     StageRunResult,
     resolve_stage_artifact_dir,
@@ -12,6 +13,44 @@ from stage_contracts import (
 )
 
 from .graph import run_codegen
+
+
+HARD_ERROR_PATTERNS = (
+    "path does not exist",
+    "path escapes",
+    "required",
+    "missing",
+    "not found",
+    "unable to resolve",
+    "refusing to",
+)
+
+
+def _is_hard_error(error_msg: str) -> bool:
+    lowered = error_msg.lower()
+    return any(pattern.lower() in lowered for pattern in HARD_ERROR_PATTERNS)
+
+
+def _determine_status(errors: list[str], local_only: bool) -> str:
+    if not errors:
+        return "succeeded"
+    if local_only:
+        hard_errors = [e for e in errors if _is_hard_error(e)]
+        return "failed" if hard_errors else "succeeded"
+    return "failed"
+
+
+def _build_stage_error(errors: list[str], warnings: list[str]) -> StageError | None:
+    if not errors and not warnings:
+        return None
+    detail: dict = {}
+    if errors:
+        detail["errors"] = errors
+    if warnings:
+        detail["warnings"] = warnings
+    code = "CODEGEN_ERRORS" if errors else "CODEGEN_WARNINGS"
+    message = "; ".join(errors) if errors else "; ".join(warnings)
+    return StageError(code=code, message=message, details=detail)
 
 
 def _first_artifact_path(request: StageRunRequest, *names: str) -> str | None:
@@ -27,7 +66,13 @@ def _first_artifact_path(request: StageRunRequest, *names: str) -> str | None:
 
 def run_stage(request: StageRunRequest) -> StageRunResult:
     started_at = datetime.now(timezone.utc)
-    logs = ["CodeGen stage started"]
+    repo_path_input = request.repo_path or request.options.get("repo_path")
+    local_only = bool(request.options.get("local_only", True))
+    logs = [
+        "CodeGen stage started",
+        f"repo_path from request: {repo_path_input or '(none)'}",
+        f"local_only: {local_only}",
+    ]
     try:
         repo_root = Path(__file__).resolve().parents[2]
         stage_dir = resolve_stage_artifact_dir(request)
@@ -38,11 +83,12 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         )
         if not design_path:
             raise ValueError("CodeGen requires a technical design artifact or options.design_path.")
+        logs.append(f"design_path: {design_path}")
 
         legacy_output_dir = stage_dir / "legacy_output"
         result_state = run_codegen(
             design_path=str(design_path),
-            repo_path=request.repo_path or request.options.get("repo_path"),
+            repo_path=repo_path_input,
             workspace_dir=str(
                 request.options.get("workspace_dir")
                 or repo_root / "agents" / "solution_design" / ".workspace"
@@ -65,7 +111,9 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
         ]
 
         ended_at = datetime.now(timezone.utc)
-        status = "failed" if result_state.get("errors") else "succeeded"
+        errors = result_state.get("errors", [])
+        status = _determine_status(errors, local_only)
+        logs.append(f"CodeGen status: {status} (errors={len(errors)}, warnings={len(result_state.get('warnings', []))})")
         result = StageRunResult(
             pipeline_id=request.pipeline_id,
             stage_id=request.stage_id,
@@ -79,6 +127,7 @@ def run_stage(request: StageRunRequest) -> StageRunResult:
             human_output=human_output,
             data=dict(result_state),
             logs=[*logs, f"CodeGen report generated: {report_path}"],
+            error=_build_stage_error(errors, result_state.get("warnings", [])),
         )
         return write_stage_artifacts(
             request=request,

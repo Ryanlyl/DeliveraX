@@ -12,6 +12,10 @@ export default defineConfig(function (_a) {
                     target: apiTarget,
                     changeOrigin: true,
                 },
+                "/health": {
+                    target: apiTarget,
+                    changeOrigin: true,
+                },
             },
         },
     };

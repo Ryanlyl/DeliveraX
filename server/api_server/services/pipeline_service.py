@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
+from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 
 from api_server.engine.models import (
@@ -28,6 +30,10 @@ from api_server.storage.json_store import JsonPipelineStore
 from stage_contracts import ArtifactRef, StageError, StageRunRequest
 
 
+def _looks_like_windows_path(value: str) -> bool:
+    return bool(re.match(r"^[A-Za-z]:[\\/]", value) or value.startswith("\\\\"))
+
+
 class PipelineService:
     def __init__(
         self,
@@ -49,13 +55,14 @@ class PipelineService:
         pipeline = PipelineRecord(
             id=pipeline_id,
             name=request.name,
+            project_id=request.project_id,
             provider=request.provider,
             model=request.model,
             temperature=request.temperature,
             stage_overrides=request.stage_overrides,
             requirement=request.requirement,
-            repo_path=request.repo_path,
-            options=request.options,
+            repo_path=self._normalize_repo_path(request.repo_path),
+            options=self._normalize_options_paths(request.options),
             stages=stages,
         )
         return self.store.save(pipeline)
@@ -101,7 +108,7 @@ class PipelineService:
             run_id=input_data.run_id or f"{pipeline_id}-{stage_id}-{uuid4().hex[:8]}",
             input_artifacts=input_artifacts,
             output_dir=self.artifacts_root,
-            repo_path=input_data.repo_path or pipeline.repo_path,
+            repo_path=self._normalize_repo_path(input_data.repo_path or pipeline.repo_path),
             options=self._stage_options(pipeline, stage_id, input_data.options),
         )
         try:
@@ -170,7 +177,7 @@ class PipelineService:
                 stage_id,
                 StageRunInput(
                     input_artifacts=input_artifacts,
-                    repo_path=input_data.repo_path or pipeline.repo_path,
+                    repo_path=self._normalize_repo_path(input_data.repo_path or pipeline.repo_path),
                     options=input_data.options,
                 ),
             )
@@ -194,6 +201,7 @@ class PipelineService:
 
     def _stage_options(self, pipeline: PipelineRecord, stage_id: str, options: dict) -> dict:
         merged = sanitize_options({**self._stage_definition_options(stage_id), **pipeline.options, **options})
+        merged = self._normalize_options_paths(merged)
         if stage_id == "requirements":
             merged.setdefault("user_input", pipeline.requirement)
 
@@ -216,6 +224,39 @@ class PipelineService:
             logging.exception("Failed to resolve LLM config for stage %s — stage will run without LLM", stage_id)
             merged["llm"] = {"provider": "unknown", "local_only": True, "use_real_llm": False, "error": "LLM resolution failed"}
         return merged
+
+    def _normalize_options_paths(self, options: dict) -> dict:
+        if "repo_path" not in options:
+            return options
+        return {**options, "repo_path": self._normalize_repo_path(options.get("repo_path"))}
+
+    def _normalize_repo_path(self, value: str | None) -> str | None:
+        if not value:
+            return value
+
+        raw = str(value)
+        path = Path(raw).expanduser()
+        if path.exists():
+            return str(path.resolve())
+
+        if not _looks_like_windows_path(raw):
+            return raw
+
+        repo_root = getattr(self.registry, "repo_root", None)
+        if not isinstance(repo_root, Path):
+            return raw
+
+        parts = [
+            part.strip("\\/")
+            for part in PureWindowsPath(raw).parts
+            if part.strip("\\/") and not part.endswith(":\\")
+        ]
+        for index in range(len(parts)):
+            candidate = repo_root.joinpath(*parts[index:])
+            if candidate.exists():
+                return str(candidate.resolve())
+
+        return raw
 
     def _get_stage_record(self, pipeline: PipelineRecord, stage_id: str) -> StageRecord:
         for stage in pipeline.stages:

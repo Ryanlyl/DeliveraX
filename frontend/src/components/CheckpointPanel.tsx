@@ -1,89 +1,189 @@
 import { useState } from "react";
+import type { CurrentCheckpointResponse, ReviewAssetsResponse } from "../api/client";
 
 type Props = {
-  title: string;
-  description: string;
+  checkpoint: CurrentCheckpointResponse;
+  reviewAssets: ReviewAssetsResponse | null;
+  pipelineId: string;
   onApprove: () => void;
   onReject: (reason: string) => void;
+  isLoadingAssets: boolean;
+  onFetchReviewAssets: (stageId: string) => void;
 };
 
-export default function CheckpointPanel({ title, description, onApprove, onReject }: Props) {
-  const [reason, setReason] = useState("");
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
-  const isRequirementReview = title.includes("需求");
-  const checklistItems = ["需求范围是否完整", "UI/交互是否符合预期", "验收标准是否清晰", "待确认问题是否明确"];
-  const isChecklistComplete = checkedItems.length === checklistItems.length;
-  const approveDisabled = isRequirementReview && !isChecklistComplete;
+function MarkdownBlock({ content }: { content: string }) {
+  return (
+    <div className="markdown-content">
+      <pre className="content-pre">{content}</pre>
+    </div>
+  );
+}
 
-  const toggleChecklistItem = (item: string) => {
-    setCheckedItems((current) =>
-      current.includes(item) ? current.filter((checked) => checked !== item) : [...current, item],
+function DiffBlock({ content }: { content: string }) {
+  return (
+    <pre className="code-block diff-block">
+      {content.split("\n").map((line, index) => (
+        <span
+          key={`${line.slice(0, 20)}-${index}`}
+          className={
+            line.startsWith("+") ? "diff-add" : line.startsWith("-") ? "diff-remove" : ""
+          }
+        >
+          {line || " "}
+        </span>
+      ))}
+    </pre>
+  );
+}
+
+export default function CheckpointPanel({
+  checkpoint,
+  reviewAssets,
+  pipelineId: _pipelineId,
+  onApprove,
+  onReject,
+  isLoadingAssets,
+  onFetchReviewAssets: _onFetchReviewAssets,
+}: Props) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const cp = checkpoint.checkpoint;
+  const stage = checkpoint.stage;
+
+  if (!cp) {
+    return (
+      <section className="checkpoint-panel">
+        <div className="checkpoint-empty">
+          <p>No pending checkpoint.</p>
+        </div>
+      </section>
     );
+  }
+
+  const title = cp.title || stage?.checkpoint_label || stage?.name || "Checkpoint";
+  const description =
+    cp.description || stage?.checkpoint_description || "AI Agent 已完成当前阶段，请人工确认。";
+
+  const handleApproveClick = async () => {
+    setSubmitting(true);
+    try {
+      await onApprove();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRejectClick = async () => {
+    if (!reason.trim()) return;
+    setSubmitting(true);
+    try {
+      await onReject(reason.trim());
+      setReason("");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <section className="checkpoint-panel">
-      <div>
+      <div className="checkpoint-header">
         <span className="checkpoint-kicker">CHECKPOINT</span>
         <h3>{title}</h3>
         <p>{description}</p>
       </div>
-      {isRequirementReview && (
-        <div className="checkpoint-checklist">
-          <strong>审核 Checklist</strong>
-          <div>
-            {checklistItems.map((item) => (
-              <label key={item} className={checkedItems.includes(item) ? "checked" : ""}>
-                <input
-                  type="checkbox"
-                  checked={checkedItems.includes(item)}
-                  onChange={() => toggleChecklistItem(item)}
-                />
-                <span>{item}</span>
-              </label>
-            ))}
-          </div>
+
+      {/* ── human output ── */}
+      {checkpoint.human_output && (
+        <div className="checkpoint-section">
+          <strong>Human Output</strong>
+          <MarkdownBlock content={checkpoint.human_output} />
         </div>
       )}
-      <div className="checkpoint-decision-grid">
-        <article>
-          <strong>AI 总结</strong>
-          <p>已完成需求结构化，包含：</p>
+
+      {/* ── review assets ── */}
+      {isLoadingAssets && (
+        <div className="checkpoint-section">
+          <span className="spinner" aria-hidden="true" />
+          <p>Loading review assets…</p>
+        </div>
+      )}
+
+      {reviewAssets && !isLoadingAssets && (
+        <div className="checkpoint-section">
+          {reviewAssets.human_output?.content && (
+            <div>
+              <strong>AI Output</strong>
+              <MarkdownBlock content={reviewAssets.human_output.content} />
+            </div>
+          )}
+          {reviewAssets.diff?.content && (
+            <div>
+              <strong>Diff</strong>
+              <DiffBlock content={reviewAssets.diff.content} />
+            </div>
+          )}
+          {reviewAssets.review_report?.content && (
+            <div>
+              <strong>Review Report</strong>
+              <MarkdownBlock content={reviewAssets.review_report.content} />
+            </div>
+          )}
+          {reviewAssets.artifacts && reviewAssets.artifacts.length > 0 && (
+            <div>
+              <strong>Artifacts</strong>
+              <ul>
+                {reviewAssets.artifacts.map((a) => (
+                  <li key={`${a.name}-${a.path}`}>
+                    <strong>{a.name}</strong> <code>{a.path}</code> ({a.type})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── artifacts from checkpoint ── */}
+      {cp.artifact_refs && cp.artifact_refs.length > 0 && (
+        <div className="checkpoint-section">
+          <strong>Checkpoint Artifacts</strong>
           <ul>
-            <li>{isRequirementReview ? "任务完成按钮视觉升级" : "代码实现符合需求目标"}</li>
-            <li>{isRequirementReview ? "状态与禁用逻辑" : "测试结果与风险项已整理"}</li>
-            <li>验收标准</li>
+            {cp.artifact_refs.map((a) => (
+              <li key={`${a.name}-${a.path}`}>
+                <strong>{a.name}</strong> <code>{a.path}</code> ({a.type})
+              </li>
+            ))}
           </ul>
-        </article>
-        <article>
-          <strong>风险提示</strong>
-          <ul className="checkpoint-risk-list">
-            {isRequirementReview ? (
-              <>
-                <li>需要重点确认完成状态是否允许重复触发。</li>
-                <li>需要重点确认按钮视觉是否符合现有设计规范。</li>
-              </>
-            ) : (
-              <>
-                <li>需要重点确认评审报告中的设计规范风险。</li>
-                <li>需要重点确认是否允许进入交付集成。</li>
-              </>
-            )}
-          </ul>
-        </article>
-      </div>
-      <textarea
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        placeholder="请输入修改意见（将反馈给 AI 重新生成需求）"
-      />
-      <div className="checkpoint-actions">
-        <button className="button secondary warning" type="button" onClick={() => onReject(reason || "需要重新生成并补充说明")}>
-          {isRequirementReview ? "返回修改需求" : "返回修改"}
-        </button>
-        <button className="button primary" type="button" onClick={onApprove} disabled={approveDisabled}>
-          {isRequirementReview ? "确认需求无误，进入方案设计" : "确认进入交付集成"}
-        </button>
+        </div>
+      )}
+
+      {/* ── decision area ── */}
+      <div className="checkpoint-decision">
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="请输入拒绝原因（通过则无需填写）"
+          rows={3}
+        />
+        <div className="checkpoint-actions">
+          <button
+            className="button secondary warning"
+            type="button"
+            onClick={handleRejectClick}
+            disabled={submitting || !reason.trim()}
+          >
+            {submitting ? "处理中..." : "拒绝"}
+          </button>
+          <button
+            className="button primary"
+            type="button"
+            onClick={handleApproveClick}
+            disabled={submitting}
+          >
+            {submitting ? "处理中..." : "通过"}
+          </button>
+        </div>
       </div>
     </section>
   );

@@ -1,0 +1,16 @@
+.git
+.gitignore
+README.md
+*.md
+.claude
+.venv
+.pytest_cache
+__pycache__
+.mypy_cache
+.ruff_cache
+node_modules
+dist
+*.tsbuildinfo
+tmp
+artifacts
+demoscript.txt

@@ -1,12 +1,37 @@
-import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppNav from "../components/AppNav";
-import RequirementInput from "../components/RequirementInput";
-import type { LLMProvider } from "../types/pipeline";
+import PipelineList from "../components/PipelineList";
+import WorkspaceHeader from "../components/WorkspaceHeader";
+import RequirementIntakeCard from "../components/RequirementIntakeCard";
+import { Api } from "../api/client";
+import type { PipelineRecord } from "../api/client";
 
 export default function Home() {
-  const [selectedModel, setSelectedModel] = useState<LLMProvider>("GPT-4");
+  const [pipelines, setPipelines] = useState<PipelineRecord[]>([]);
+  const [loadingPipelines, setLoadingPipelines] = useState(true);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const projectId = searchParams.get("project_id");
+
+  const fetchPipelines = useCallback(async () => {
+    setLoadingPipelines(true);
+    setPipelineError(null);
+    try {
+      const list = await Api.listPipelines(projectId);
+      setPipelines(list);
+    } catch (e) {
+      setPipelineError(e instanceof Error ? e.message : "Failed to load pipelines");
+    } finally {
+      setLoadingPipelines(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchPipelines();
+  }, [fetchPipelines]);
 
   const projectContext = useMemo(() => {
     const projectId = searchParams.get("project_id");
@@ -17,42 +42,46 @@ export default function Home() {
     return undefined;
   }, [searchParams]);
 
+  const handlePipelineClick = (p: PipelineRecord) => {
+    navigate(`/pipeline/${p.id}`);
+  };
+
   return (
-    <main className="home-page">
-      <div className="home-grid-overlay" aria-hidden="true" />
-      <div className="home-glow home-glow-right" aria-hidden="true" />
-      <div className="home-glow home-glow-left" aria-hidden="true" />
+    <div className="app-shell min-h-screen bg-[#f8fafc]">
+      {/* Background decoration */}
+      <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-0 right-0 w-[480px] h-[480px] rounded-full blur-[80px] opacity-[0.06] bg-blue-500 -translate-y-1/4 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-[360px] h-[360px] rounded-full blur-[80px] opacity-[0.04] bg-cyan-400 translate-y-1/4 -translate-x-1/4" />
+      </div>
 
-      <AppNav active="start" />
+      <div className="relative z-10">
+        {/* Top nav */}
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <AppNav active="dashboard" variant="app" />
+        </div>
 
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">AI DevFlow Workbench</span>
-          <h1>
-            从需求到代码的
-            <span>自动化研发工作台</span>
-          </h1>
-          <p className="hero-description">
-            输入一个前端变更需求，系统会拆解 PRD、方案、代码、测试和评审节点，并在关键检查点交给你确认。
-          </p>
-          {projectContext && (
-            <p className="hero-project-context">
-              目标仓库：{projectContext.repo_path}
-            </p>
-          )}
-          <div className="hero-metrics" aria-label="DevFlow 摘要">
-            <span><strong>6</strong> 个自动化节点</span>
-            <span><strong>2</strong> 个人工检查点</span>
-            <span><strong>18s</strong> 演示交付链路</span>
+        {/* Main two-column layout */}
+        <div className="max-w-7xl mx-auto px-6 pt-6 pb-12">
+          <div className="flex gap-6 items-start max-lg:flex-col">
+            {/* Left: Pipeline list (35%) */}
+            <div className="w-[35%] shrink-0 max-lg:w-full">
+              <PipelineList
+                pipelines={pipelines}
+                loading={loadingPipelines}
+                error={pipelineError}
+                onRetry={fetchPipelines}
+                onPipelineClick={handlePipelineClick}
+              />
+            </div>
+
+            {/* Right: Workspace (65%) */}
+            <div className="flex-1 min-w-0 flex flex-col gap-5">
+              <WorkspaceHeader />
+              <RequirementIntakeCard projectContext={projectContext} />
+            </div>
           </div>
         </div>
-      </section>
-
-      <RequirementInput
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-        projectContext={projectContext}
-      />
-    </main>
+      </div>
+    </div>
   );
 }

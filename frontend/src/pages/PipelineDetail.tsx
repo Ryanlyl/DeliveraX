@@ -1,304 +1,414 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import PipelineHeader from "../components/PipelineHeader";
 import PipelineTimeline from "../components/PipelineTimeline";
-import StageDetailPanel, { DESIGN_NAV_GROUPS } from "../components/StageDetailPanel";
-import { initialStages } from "../data/mockPipeline";
-import type { LLMProvider, PipelineStatus, Stage, StageStatus } from "../types/pipeline";
+import PipelineCanvas from "../components/PipelineCanvas";
+import StageDetailPanel from "../components/StageDetailPanel";
+import CheckpointPanel from "../components/CheckpointPanel";
+import { Api } from "../api/client";
+import type {
+  PipelineRecord,
+  PipelineRun,
+  CurrentCheckpointResponse,
+  ReviewAssetsResponse,
+  StageRecord,
+} from "../api/client";
 
-const stageDurations = ["1.5s", "3.0s", "4.2s", "6.8s", "9.6s", "11.1s"];
-const createBaseLogs = (model: LLMProvider) => [
-  `Using model: ${model}`,
-  "Requirement Agent started",
-  "Parsing natural language requirement",
-  "Generated RequirementSpec JSON",
-  "Waiting for human approval",
-  "Token usage: 1280",
-  "Duration: 3.2s",
-];
-
-function parseModel(model: string | null): LLMProvider {
-  return model === "Claude 3" ? "Claude 3" : "GPT-4";
-}
-
-function cloneStages() {
-  return initialStages.map((stage) => ({
-    ...stage,
-    logs: [...stage.logs],
-  }));
-}
-
-function nextExecutableIndex(stages: Stage[], currentIndex: number) {
-  for (let index = currentIndex + 1; index < stages.length; index += 1) {
-    if (stages[index].status === "queued") return index;
-  }
-  return -1;
-}
-
-function enforceCheckpointBoundary(stages: Stage[]) {
-  const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
-  if (pendingReviewIndex < 0) return stages;
-
-  return stages.map((stage, index) =>
-    index > pendingReviewIndex && stage.status !== "queued"
-      ? { ...stage, status: "queued" as const, duration: "0.0s" }
-      : stage,
+function getPreferredStageId(stages: StageRecord[]): string {
+  const active = stages.find(
+    (s) =>
+      s.status === "running" ||
+      s.status === "pending_approval" ||
+      s.status === "failed",
   );
+  if (active) return active.id;
+
+  const lastSucceeded = [...stages].reverse().find((s) => s.status === "succeeded");
+  if (lastSucceeded) return lastSucceeded.id;
+
+  const firstAvailable = stages.find((s) => s.status !== "queued");
+  if (firstAvailable) return firstAvailable.id;
+
+  return stages[0]?.id ?? "";
 }
 
 export default function PipelineDetail() {
+  const { pipelineId } = useParams<{ pipelineId: string }>();
   const [searchParams] = useSearchParams();
-  const model = parseModel(searchParams.get("model"));
-  const [stages, setStages] = useState<Stage[]>(cloneStages);
-  const [activeStageId, setActiveStageId] = useState("requirements");
-  const [selectedStageId, setSelectedStageId] = useState("requirements");
-  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>("running");
+  const runId = searchParams.get("run_id");
+
+  const [pipeline, setPipeline] = useState<PipelineRecord | null>(null);
+  const [run, setRun] = useState<PipelineRun | null>(null);
+  const [checkpoint, setCheckpoint] = useState<CurrentCheckpointResponse | null>(null);
+  const [reviewAssets, setReviewAssets] = useState<ReviewAssetsResponse | null>(null);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const [selectedStageId, setSelectedStageId] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [totalDuration, setTotalDuration] = useState("0.0s");
-  const [activeDesignSection, setActiveDesignSection] = useState("meta");
-  const timerRef = useRef<number | null>(null);
 
-  const selectedStage = useMemo(
-    () => stages.find((stage) => stage.id === selectedStageId) ?? stages[0],
-    [selectedStageId, stages],
+  const pollRef = useRef<number | null>(null);
+  const durationRef = useRef<number | null>(null);
+  const pipelineRef = useRef(pipeline);
+  const userSelectedStageRef = useRef(false);
+
+  pipelineRef.current = pipeline;
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?fetch helpers 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  const fetchPipeline = useCallback(async () => {
+    if (!pipelineId) return;
+    const p = await Api.getPipeline(pipelineId);
+    setPipeline(p);
+    return p;
+  }, [pipelineId]);
+
+  const fetchRun = useCallback(async () => {
+    if (!pipelineId || !runId) return;
+    const r = await Api.getRun(pipelineId, runId);
+    setRun(r);
+    return r;
+  }, [pipelineId, runId]);
+
+  const fetchCheckpoint = useCallback(async () => {
+    if (!pipelineId) return;
+    try {
+      const c = await Api.getCurrentCheckpoint(pipelineId);
+      setCheckpoint(c);
+    } catch {
+      setCheckpoint(null);
+    }
+  }, [pipelineId]);
+
+  const fetchReviewAssets = useCallback(
+    async (stageId: string) => {
+      if (!pipelineId) return;
+      setLoadingAssets(true);
+      try {
+        const assets = await Api.getStageReviewAssets(pipelineId, stageId);
+        setReviewAssets(assets);
+      } catch {
+        setReviewAssets(null);
+      } finally {
+        setLoadingAssets(false);
+      }
+    },
+    [pipelineId],
   );
-  const isViewingDesign = selectedStage.id === "solution";
 
-  const focusCurrentStage = (nextStages: Stage[]) => {
-    const focused = nextStages.find((stage) => stage.status === "pending_approval" || stage.status === "running");
-    if (focused) setActiveStageId(focused.id);
-  };
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?initial load 闂佸啿鍘滈崑鎾绘煃閸忓浜?
 
-  const selectStage = (stageId: string) => {
-    const stage = stages.find((item) => item.id === stageId);
+  useEffect(() => {
+    if (!pipelineId) {
+      setError("No pipeline ID in URL");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const p = await Api.getPipeline(pipelineId!);
+        if (cancelled) return;
+        setPipeline(p);
+        if (p.stages.length > 0) {
+          setSelectedStageId((prev) => prev || getPreferredStageId(p.stages));
+        }
+        if (runId) {
+          const r = await Api.getRun(pipelineId!, runId);
+          if (!cancelled) setRun(r);
+        }
+      } catch (e) {
+        if (!cancelled) setError(`Failed to load pipeline: ${e instanceof Error ? e.message : e}`);
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pipelineId, runId]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?polling 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  useEffect(() => {
+    if (!pipelineId) return;
+
+    async function poll() {
+      try {
+        const p = await Api.getPipeline(pipelineId!);
+        setPipeline(p);
+
+        if (p.status === "pending_approval") {
+          await fetchCheckpoint();
+        }
+
+        if (runId) {
+          const r = await Api.getRun(pipelineId!, runId);
+          setRun(r);
+        }
+
+        if (Api.isTerminal(p.status)) {
+          if (pollRef.current) window.clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      } catch {
+        // keep polling on transient errors
+      }
+    }
+
+    pollRef.current = window.setInterval(poll, 1000);
+
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [pipelineId, runId, fetchCheckpoint]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?duration tracking 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  useEffect(() => {
+    if (!run?.started_at) return;
+    const startedAt = new Date(run.started_at).getTime();
+
+    if (run.ended_at) {
+      const dur = (new Date(run.ended_at).getTime() - startedAt) / 1000;
+      setTotalDuration(`${dur.toFixed(1)}s`);
+      return;
+    }
+
+    if (Api.isTerminal(pipeline?.status ?? "queued")) return;
+
+    durationRef.current = window.setInterval(() => {
+      const dur = (Date.now() - startedAt) / 1000;
+      setTotalDuration(`${dur.toFixed(1)}s`);
+    }, 200);
+
+    return () => {
+      if (durationRef.current) window.clearInterval(durationRef.current);
+    };
+  }, [run?.started_at, run?.ended_at, pipeline?.status]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?load review assets when stage selection changes 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  useEffect(() => {
+    if (selectedStageId) {
+      fetchReviewAssets(selectedStageId);
+    }
+  }, [selectedStageId, fetchReviewAssets]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?derived state 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  const activeStageId =
+    run?.current_stage_id ||
+    pipeline?.stages.find(
+      (s) => s.status === "running" || s.status === "pending_approval",
+    )?.id ||
+    "";
+
+  const pendingApprovalStageId =
+    pipeline?.stages.find((s) => s.status === "pending_approval")?.id ?? "";
+
+  const selectedStage = pipeline?.stages.find((s) => s.id === selectedStageId);
+
+  const handleSelectStage = (stageId: string) => {
+    const stage = pipeline?.stages.find((s) => s.id === stageId);
     if (!stage || stage.status === "queued") return;
+    userSelectedStageRef.current = true;
     setSelectedStageId(stageId);
   };
 
-  const updateStage = (stageId: string, patch: Partial<Stage>) => {
-    setStages((current) => {
-      const next = current.map((stage) => (stage.id === stageId ? { ...stage, ...patch } : stage));
-      focusCurrentStage(next);
-      return next;
-    });
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?auto-follow active stage (unless user manually selected) 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  useEffect(() => {
+    if (!activeStageId) return;
+    if (userSelectedStageRef.current) return;
+
+    setSelectedStageId(activeStageId);
+  }, [activeStageId]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?force-switch to pending approval stage 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  useEffect(() => {
+    if (!pendingApprovalStageId) return;
+
+    setSelectedStageId(pendingApprovalStageId);
+    userSelectedStageRef.current = false;
+  }, [pendingApprovalStageId]);
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?lifecycle actions 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  const clearError = () => setError(null);
+
+  const handleStart = async () => {
+    if (!pipelineId) return;
+    clearError();
+    try {
+      const r = await Api.startPipeline(pipelineId);
+      setRun(r);
+      // update URL with run_id without full navigation
+      const params = new URLSearchParams(searchParams);
+      params.set("run_id", r.id);
+      window.history.replaceState(null, "", `?${params.toString()}`);
+      await fetchPipeline();
+    } catch (e) {
+      setError(`Start failed: ${e instanceof Error ? e.message : e}`);
+    }
   };
 
-  const appendLog = (stageId: string, log: string) => {
-    setStages((current) =>
-      current.map((stage) =>
-        stage.id === stageId && !stage.logs.includes(log) ? { ...stage, logs: [...stage.logs, log] } : stage,
-      ),
+  const handlePause = async () => {
+    if (!pipelineId) return;
+    clearError();
+    try {
+      await Api.pausePipeline(pipelineId, runId ?? undefined);
+      await fetchPipeline();
+      await fetchRun();
+    } catch (e) {
+      setError(`Pause failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleResume = async () => {
+    if (!pipelineId) return;
+    clearError();
+    try {
+      await Api.resumePipeline(pipelineId, runId ?? undefined);
+      await fetchPipeline();
+      await fetchRun();
+    } catch (e) {
+      setError(`Resume failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleTerminate = async () => {
+    if (!pipelineId) return;
+    clearError();
+    try {
+      await Api.terminatePipeline(pipelineId, runId ?? undefined);
+      await fetchPipeline();
+      await fetchRun();
+    } catch (e) {
+      setError(`Terminate failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!checkpoint?.checkpoint?.id) return;
+    clearError();
+    try {
+      await Api.approveCheckpoint(checkpoint.checkpoint.id, { continue_pipeline: true });
+      setCheckpoint(null);
+      await fetchPipeline();
+      await fetchRun();
+    } catch (e) {
+      setError(`Approval failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleReject = async (reason: string) => {
+    if (!checkpoint?.checkpoint?.id) return;
+    clearError();
+    try {
+      await Api.rejectCheckpoint(checkpoint.checkpoint.id, { reason, continue_pipeline: false });
+      setCheckpoint(null);
+      await fetchPipeline();
+      await fetchRun();
+    } catch (e) {
+      setError(`Rejection failed: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  // 闂佸啿鍘滈崑鎾绘煃閸忓浜?loading / error states 闂佸啿鍘滈崑鎾绘煃閸忓浜?
+
+  if (error) {
+    return (
+      <main className="pipeline-page app-shell">
+        <div className="pipeline-error">
+          <h2>Pipeline Error</h2>
+          <p>{error}</p>
+          <button className="button primary" type="button" onClick={() => { setError(null); fetchPipeline(); }}>
+            Retry
+          </button>
+        </div>
+      </main>
     );
-  };
+  }
 
-  const completeRunningStage = (stageId: string, targetStatus: StageStatus = "succeeded") => {
-    setStages((current) => {
-      const index = current.findIndex((stage) => stage.id === stageId);
-      if (index < 0) return current;
-
-      const next = enforceCheckpointBoundary(current.map((stage, stageIndex) => {
-        if (stage.id !== stageId) return stage;
-        const logMessage =
-          targetStatus === "pending_approval" ? "Waiting for human approval" : `${stage.agent} completed successfully`;
-        const logs = [
-          ...stage.logs,
-          ...(stage.logs.includes(logMessage) ? [] : [logMessage]),
-        ];
-        return { ...stage, status: targetStatus, duration: stageDurations[index], logs };
-      }));
-
-      if (targetStatus === "pending_approval") {
-        setPipelineStatus("pending_approval");
-      }
-
-      focusCurrentStage(next);
-      return next;
-    });
-  };
-
-  const runStage = (stageId: string) => {
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    updateStage(stageId, { status: "running" });
-    appendLog(stageId, `${stages.find((stage) => stage.id === stageId)?.agent ?? "Agent"} started`);
-
-    timerRef.current = window.setTimeout(() => {
-      const currentStage = initialStages.find((item) => item.id === stageId);
-      const shouldPauseForReview = currentStage?.checkpoint === true;
-      completeRunningStage(stageId, shouldPauseForReview ? "pending_approval" : "succeeded");
-
-      if (!shouldPauseForReview) {
-        setStages((current) => {
-          const index = current.findIndex((item) => item.id === stageId);
-          const nextIndex = nextExecutableIndex(current, index);
-          if (nextIndex < 0) {
-            setPipelineStatus("succeeded");
-            setTotalDuration("18.6s");
-            return current;
-          }
-          const next = current.map((item, itemIndex) =>
-            itemIndex === nextIndex
-              ? { ...item, status: "running" as const, logs: [...item.logs, `${item.agent} started`] }
-              : item,
-          );
-          focusCurrentStage(next);
-          window.setTimeout(() => runStage(next[nextIndex].id), 80);
-          return next;
-        });
-      }
-    }, 1500);
-  };
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => runStage("requirements"), 250);
-    return () => {
-      window.clearTimeout(timer);
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const startedAt = Date.now();
-    const timer = window.setInterval(() => {
-      if (pipelineStatus !== "succeeded") {
-        setTotalDuration(`${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
-      }
-    }, 200);
-    return () => window.clearInterval(timer);
-  }, [pipelineStatus]);
-
-  useEffect(() => {
-    const pendingReviewIndex = stages.findIndex((stage) => stage.status === "pending_approval");
-    if (pendingReviewIndex < 0) return;
-
-    const normalized = enforceCheckpointBoundary(stages);
-    const needsNormalization = normalized.some(
-      (stage, index) => stage.status !== stages[index].status || stage.duration !== stages[index].duration,
+  if (!pipeline) {
+    return (
+      <main className="pipeline-page app-shell">
+        <div className="pipeline-loading">
+          <span className="spinner" aria-hidden="true" />
+          <p>Loading pipeline...</p>
+        </div>
+      </main>
     );
-
-    if (pipelineStatus !== "pending_approval") {
-      setPipelineStatus("pending_approval");
-    }
-    if (activeStageId !== stages[pendingReviewIndex].id) {
-      setActiveStageId(stages[pendingReviewIndex].id);
-    }
-    const selectedStageInNext = normalized.find((stage) => stage.id === selectedStageId);
-    if (!selectedStageInNext || selectedStageInNext.status === "queued") {
-      setSelectedStageId(stages[pendingReviewIndex].id);
-    }
-    if (needsNormalization) {
-      setStages(normalized);
-    }
-  }, [activeStageId, pipelineStatus, selectedStageId, stages]);
-
-  useEffect(() => {
-    if (!isViewingDesign) return;
-
-    const sectionIds = DESIGN_NAV_GROUPS.flatMap((group) => group.items.map((item) => item.id));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible?.target.id) setActiveDesignSection(visible.target.id);
-      },
-      { rootMargin: "-18% 0px -68% 0px", threshold: [0.12, 0.3, 0.6] },
-    );
-
-    sectionIds.forEach((id) => {
-      const element = document.getElementById(id);
-      if (element) observer.observe(element);
-    });
-
-    return () => observer.disconnect();
-  }, [isViewingDesign]);
-
-  const scrollToDesignSection = (sectionId: string) => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const approveCheckpoint = () => {
-    const currentIndex = stages.findIndex((stage) => stage.id === selectedStage.id);
-    const nextIndex = nextExecutableIndex(stages, currentIndex);
-    const approvedStages = stages.map((stage, index) => {
-      if (stage.id === selectedStage.id) {
-        return {
-          ...stage,
-          status: "succeeded" as const,
-          logs: stage.logs.includes("Human approval received") ? stage.logs : [...stage.logs, "Human approval received"],
-        };
-      }
-      if (index === nextIndex) {
-        return { ...stage, status: "running" as const, logs: [...stage.logs, `${stage.agent} started`] };
-      }
-      return stage;
-    });
-
-    setPipelineStatus("running");
-    setStages(approvedStages);
-
-    if (nextIndex >= 0) {
-      setActiveStageId(approvedStages[nextIndex].id);
-      setSelectedStageId(approvedStages[nextIndex].id);
-      window.setTimeout(() => runStage(approvedStages[nextIndex].id), 120);
-    } else {
-      setPipelineStatus("succeeded");
-      setTotalDuration("18.6s");
-    }
-  };
-
-  const rejectCheckpoint = (reason: string) => {
-    appendLog(selectedStage.id, `Reject reason received: ${reason}`);
-    appendLog(selectedStage.id, `Regenerating stage output with model: ${model}`);
-    setPipelineStatus("running");
-    updateStage(selectedStage.id, { status: "running" });
-
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      completeRunningStage(selectedStage.id, "pending_approval");
-    }, 1500);
-  };
+  }
 
   return (
-    <main className="pipeline-page">
-      <PipelineHeader status={pipelineStatus} totalDuration={totalDuration} model={model} />
+    <main className="pipeline-page app-shell">
+      <PipelineHeader
+        pipelineName={pipeline.name}
+        pipelineId={pipeline.id}
+        runId={run?.id ?? null}
+        status={pipeline.status}
+        totalDuration={totalDuration}
+        model={pipeline.model}
+        provider={pipeline.provider}
+        onStart={handleStart}
+        onPause={handlePause}
+        onResume={handleResume}
+        onTerminate={handleTerminate}
+      />
+
+      {pipeline.status === "pending_approval" && (
+        <div className="checkpoint-alert">
+          <strong>Waiting for manual approval</strong>
+          <p>The pipeline is paused. Review the current stage output and choose approve or reject.</p>
+        </div>
+      )}
+
+      {/* 闂佸啿鍘滈崑鎾绘煃閸忓浜?visual flow overview 闂佸啿鍘滈崑鎾绘煃閸忓浜?*/}
+      <PipelineCanvas
+        stages={pipeline.stages}
+        activeStageId={activeStageId}
+        selectedStageId={selectedStageId}
+        onSelectStage={handleSelectStage}
+      />
+
       <div className="pipeline-layout">
         <aside className="pipeline-left-column">
-          <PipelineTimeline stages={stages} activeStageId={activeStageId} selectedStageId={selectedStageId} onSelectStage={selectStage} />
-          {isViewingDesign && (
-            <nav className="design-review-nav enhanced pipeline-structure-nav" aria-label="技术方案结构导航">
-              <div className="panel-title compact">
-                <span className="eyebrow">Content Index</span>
-                <h2>结构导航</h2>
-              </div>
-              {DESIGN_NAV_GROUPS.map((group) => (
-                <div className="nav-group" key={group.group}>
-                  <strong>{group.group}</strong>
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      className={activeDesignSection === item.id ? "active" : ""}
-                      type="button"
-                      onClick={() => scrollToDesignSection(item.id)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </nav>
-          )}
+          <PipelineTimeline
+            stages={pipeline.stages}
+            activeStageId={activeStageId}
+            selectedStageId={selectedStageId}
+            onSelectStage={handleSelectStage}
+          />
         </aside>
-        <StageDetailPanel
-          stage={selectedStage}
-          model={model}
-          viewingHistory={selectedStageId !== activeStageId}
-          onApprove={approveCheckpoint}
-          onReject={rejectCheckpoint}
-        />
-      </div>
-      <div className="floating-log-strip" aria-hidden="true">
-        {createBaseLogs(model).map((log) => (
-          <span key={log}>{log}</span>
-        ))}
+        {selectedStage && (
+          <div>
+            <StageDetailPanel
+              stage={selectedStage}
+              reviewAssets={reviewAssets}
+              isLoadingAssets={loadingAssets}
+              onApprove={handleApprove}
+              onReject={handleReject}
+            />
+
+            {checkpoint?.checkpoint &&
+              checkpoint.checkpoint.status === "pending" &&
+              checkpoint.checkpoint.stage_id === selectedStage.id && (
+                <CheckpointPanel
+                  checkpoint={checkpoint}
+                  reviewAssets={reviewAssets}
+                  pipelineId={pipelineId!}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  isLoadingAssets={loadingAssets}
+                  onFetchReviewAssets={fetchReviewAssets}
+                />
+              )}
+          </div>
+        )}
       </div>
     </main>
   );

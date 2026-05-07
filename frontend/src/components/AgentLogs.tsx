@@ -1,12 +1,14 @@
-import type { LLMProvider } from "../types/pipeline";
-
 type Props = {
   logs: string[];
-  model: LLMProvider;
+  model?: string;
 };
 
 export default function AgentLogs({ logs, model }: Props) {
-  const visibleLogs = [`Using model: ${model}`, ...logs.filter((log) => !log.startsWith("Using model:"))];
+  const modelLine = model ? `Using model: ${model}` : null;
+  const visibleLogs = [
+    ...(modelLine ? [modelLine] : []),
+    ...logs.filter((log) => !log.startsWith("Using model:")),
+  ];
 
   return (
     <details className="agent-logs">

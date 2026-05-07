@@ -138,6 +138,18 @@ def create_integration_worktree(state: IntegrationState) -> IntegrationState:
 
 
 def apply_reviewed_diff(state: IntegrationState) -> IntegrationState:
+    diff_path = Path(state["diff_path"])
+    if not diff_path.read_text(encoding="utf-8").strip():
+        state["applied_diff"] = {
+            "check_passed": True,
+            "applied": False,
+            "no_changes": True,
+            "check_output": "",
+            "apply_output": "No reviewed diff to apply.",
+        }
+        state.setdefault("warnings", []).append("No reviewed diff was provided; Integration will produce a no-op delivery package.")
+        return state
+
     result = apply_diff(repo_root=state["integration_repo_path"], diff_path=state["diff_path"])
     state["applied_diff"] = result  # type: ignore[assignment]
     if not result.get("check_passed"):
@@ -152,6 +164,15 @@ def verify_integrated_diff(state: IntegrationState) -> IntegrationState:
     base = state.get("task_base_commit_sha")
     planned_files = state.get("changed_files", [])
     assert_safe_changed_files(repo, planned_files)
+
+    if state.get("applied_diff", {}).get("no_changes"):
+        state["head_commit_sha"] = git_head(repo)
+        state["committed"] = False
+        state["final_diff"] = ""
+        state["final_diff_stat"] = "No changed files."
+        state["integrated_files"] = []
+        state["merge_ready"] = True
+        return state
 
     committed = False
     if state.get("create_commit", True):
